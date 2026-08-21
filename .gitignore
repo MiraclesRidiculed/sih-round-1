@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+coverage/
+artifacts/
+cache/
+client/dist/
+server/.env
+contracts/.env
+contracts/artifacts/
+contracts/cache/
+npm-debug.log*
+
