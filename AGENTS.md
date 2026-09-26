@@ -23,8 +23,8 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 * **Target Active Branch:** `GIS-Branch-2` (GitHub display name requested: “GIS Branch 2”).
 * **Repository:** `MiraclesRidiculed/sih-round-1`, remote `origin`.
 * **Branch policy:** Continue this work on `GIS-Branch-2`; do not switch to or push these changes to `main` or another branch unless explicitly requested.
-* **Last committed/pushed baseline:** `f9d7240 feat: extend land stack governance workflows`.
-* **Current worktree:** Step 27 fiscal/utility UI and tests, plus this progress update, are the pending changes to commit and push to `origin/GIS-Branch-2`.
+* **Last committed/pushed baseline:** `b8a594f feat: add parcel tax and utility layers` (includes Step 27, tests, and this progress update; pushed to `origin/GIS-Branch-2`).
+* **Current worktree:** Clean after the Step 27 commit and push.
 * **Prerequisites:** MongoDB running locally on port 27017 (`mongodb://127.0.0.1:27017/karnataka_landchain`), Node.js v22+.
 
 ---
@@ -109,9 +109,7 @@ The requested implementation sequence is complete through **STEP 27**. Continue 
 - Do not claim a complete full-regression/security re-audit based solely on these targeted checks.
 
 ### Immediate resume action
-The Step 27 implementation and this file update must be committed and pushed to the existing branch `GIS-Branch-2`, not to a new branch. Inspect `git status` and the diff first, stage only intended files, run relevant checks if code has changed, then commit and push normally (no force push). The prior pushed baseline is `f9d7240`; preserve it and append a new commit. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
-
-If the push is already complete when this file is next read, inspect the branch and remote status before deciding whether any additional action is needed. The user’s requested same-branch target is `origin/GIS-Branch-2`.
+Step 27 and this progress update have been committed and pushed as `b8a594f` to `origin/GIS-Branch-2`. The worktree was clean after the push. On the next task, first inspect `git status --short --branch` and the current diff, then continue from the completed Step 27 state. For future requested work, commit and push to `GIS-Branch-2` (no force push); do not create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
 
 ---
 
