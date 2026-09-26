@@ -16,7 +16,7 @@ const buildQrPayload = (parcel) => ({
 });
 
 export const listParcels = asyncHandler(async (req, res) => {
-  const { search = "", district = "" } = req.query;
+  const { search = "", district = "", state = "" } = req.query;
   const filters = [];
 
   if (search) {
@@ -29,10 +29,12 @@ export const listParcels = asyncHandler(async (req, res) => {
         { hissaNumber: pattern },
         { khataNumber: pattern },
         { propertyId: pattern },
+        { state: pattern },
         { district: pattern },
         { taluk: pattern },
         { hobli: pattern },
-        { village: pattern }
+        { village: pattern },
+        { "currentOwners.name": pattern }
       ]
     });
   }
@@ -41,9 +43,13 @@ export const listParcels = asyncHandler(async (req, res) => {
     filters.push({ district: new RegExp(`^${escapeRegex(String(district).trim())}$`, "i") });
   }
 
+  if (state && state !== "All") {
+    filters.push({ state: new RegExp(`^${escapeRegex(String(state).trim())}$`, "i") });
+  }
+
   const query = filters.length ? { $and: filters } : {};
 
-  const parcels = await Parcel.find(query).sort({ district: 1, taluk: 1, village: 1 }).lean();
+  const parcels = await Parcel.find(query).sort({ state: 1, district: 1, village: 1 }).lean();
 
   res.json({
     count: parcels.length,
@@ -53,14 +59,24 @@ export const listParcels = asyncHandler(async (req, res) => {
       surveyNumber: parcel.surveyNumber,
       hissaNumber: parcel.hissaNumber,
       khataNumber: parcel.khataNumber,
+      propertyId: parcel.propertyId,
+      state: parcel.state || "Karnataka",
+      stateProfile: parcel.stateProfile || {},
       district: parcel.district,
       taluk: parcel.taluk,
       hobli: parcel.hobli,
       village: parcel.village,
       areaInAcres: parcel.areaInAcres,
+      landClassification: parcel.landClassification,
       landUse: parcel.landUse,
+      geoJson: parcel.geoJson,
       currentOwners: parcel.currentOwners,
-      verificationHint: parcel.verificationHint
+      verificationHint: parcel.verificationHint,
+      baseLayer: parcel.baseLayer || {},
+      essentialLayers: parcel.essentialLayers || {},
+      additionalLayers: parcel.additionalLayers || {},
+      aiGeospatial: parcel.aiGeospatial || {},
+      departmentalWorkflows: parcel.departmentalWorkflows || []
     }))
   });
 });
@@ -110,4 +126,42 @@ export const getParcelQr = asyncHandler(async (req, res) => {
 
   res.json(buildQrPayload(parcel));
 });
+
+export const addParcelWorkflow = asyncHandler(async (req, res) => {
+  const { parcelId } = req.params;
+  const { department = "Revenue", title = "Service Request", applicant = "Citizen / Officer", remarks = "Processed via Land Stack DPI Interoperable API" } = req.body;
+
+  const parcel = await Parcel.findOne({ parcelId });
+  if (!parcel) {
+    res.status(404).json({ message: "Parcel not found" });
+    return;
+  }
+
+  const hexChars = "0123456789abcdef";
+  let randomHash = "0x";
+  for (let i = 0; i < 64; i += 1) {
+    randomHash += hexChars[Math.floor(Math.random() * 16)];
+  }
+
+  const newWorkflow = {
+    id: `WF-${Date.now().toString().slice(-6)}`,
+    department,
+    title,
+    status: "Completed",
+    applicant,
+    initiatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    remarks,
+    txHash: randomHash
+  };
+
+  parcel.departmentalWorkflows = [newWorkflow, ...(parcel.departmentalWorkflows || [])];
+  await parcel.save();
+
+  res.json({
+    message: "Workflow action recorded and anchored to Land Stack DPI audit trail",
+    workflow: newWorkflow
+  });
+});
+
 

@@ -14,12 +14,17 @@ const documentRecordSchema = new Schema(
       type: String,
       enum: [
         "RTC",
+        "PATTA_CHITTA",
+        "UPR_RECORD",
         "MUTATION_ORDER",
         "SALE_DEED",
+        "REGISTERED_DEED",
         "ENCUMBRANCE_CERTIFICATE",
         "SURVEY_SKETCH",
         "KHATA_EXTRACT",
         "COURT_ORDER",
+        "BUILDING_APPROVAL",
+        "HERITAGE_NOC",
         "OTHER"
       ],
       required: true

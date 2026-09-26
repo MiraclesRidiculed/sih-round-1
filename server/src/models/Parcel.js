@@ -51,6 +51,31 @@ const parcelSchema = new Schema(
     landUse: { type: String, required: true, trim: true },
     geoJson: { type: geoJsonSchema, required: true },
     currentOwners: { type: [ownerShareSchema], default: [] },
+    state: { type: String, required: true, default: "Karnataka", index: true },
+    stateProfile: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    baseLayer: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    essentialLayers: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    additionalLayers: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    aiGeospatial: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    departmentalWorkflows: {
+      type: [Schema.Types.Mixed],
+      default: []
+    },
     authoritativeRecords: {
       type: Schema.Types.Mixed,
       default: {}

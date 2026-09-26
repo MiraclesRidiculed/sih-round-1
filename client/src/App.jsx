@@ -6,6 +6,7 @@ const HomePage = lazy(() => import("./pages/HomePage"));
 const ParcelDetailPage = lazy(() => import("./pages/ParcelDetailPage"));
 const PublicVerifyPage = lazy(() => import("./pages/PublicVerifyPage"));
 const QrScanPage = lazy(() => import("./pages/QrScanPage"));
+const StandardTechnicalDocPage = lazy(() => import("./pages/StandardTechnicalDocPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 const App = () => (
@@ -16,6 +17,7 @@ const App = () => (
         <Route path="/parcels/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/verify/:parcelId" element={<PublicVerifyPage />} />
         <Route path="/scan" element={<QrScanPage />} />
+        <Route path="/std" element={<StandardTechnicalDocPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

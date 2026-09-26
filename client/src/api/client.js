@@ -9,10 +9,14 @@ export const fetchDashboard = async () => {
   return data;
 };
 
-export const searchParcels = async (search = "") => {
-  const { data } = await api.get("/parcels", {
-    params: search ? { search } : {}
-  });
+export const searchParcels = async (params = {}) => {
+  const query = typeof params === "string" ? { search: params } : params;
+  const { data } = await api.get("/parcels", { params: query });
+  return data;
+};
+
+export const submitParcelWorkflow = async (parcelId, payload) => {
+  const { data } = await api.post(`/parcels/${parcelId}/workflow`, payload);
   return data;
 };
 
