@@ -47,7 +47,7 @@ const BiTemporalSatelliteModal = ({ parcel, onClose, onActionCompleted }) => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-800">
-                  AI Remote Sensing Radar
+                  Remote Sensing Change Detection
                 </span>
                 <span className="text-xs text-earth-500">Bi-Temporal Satellite Comparison (2024 vs 2026)</span>
               </div>
@@ -73,7 +73,7 @@ const BiTemporalSatelliteModal = ({ parcel, onClose, onActionCompleted }) => {
             <div className="relative h-44 w-72 rounded-2xl border border-white/30 bg-emerald-950/40 p-3 shadow-lg">
               <span className="text-[10px] font-bold text-gray-400">Cadastral Boundary 248/3</span>
               {/* Encroaching Red Box */}
-              <div className="absolute -top-3 -right-3 h-20 w-24 rounded-lg border-2 border-rose-500 bg-rose-500/30 p-1 text-center animate-pulse">
+              <div className="absolute -top-3 -right-3 h-20 w-24 rounded-lg border border-rose-300 bg-rose-50 p-1 text-center">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-rose-300">
                   +142 m² New Construction
                 </span>

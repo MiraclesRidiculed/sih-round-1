@@ -1482,8 +1482,9 @@ export const demoUsers = [
     name: "Dr. Rameshwar Sharma, IAS",
     email: "admin@landstack.gov.in",
     role: "admin",
-    designation: "Joint Secretary / National DPI Administrator",
+    designation: "DoLR National Platform Administrator",
     department: "Department of Land Resources (DoLR), MoRD",
+    jurisdiction: "National / All States",
     passwordHash: "",
     lastLoginAt: "2026-08-20T09:45:00.000Z"
   },
@@ -1491,8 +1492,9 @@ export const demoUsers = [
     name: "K. Annadurai, DRO",
     email: "tehsildar@tamilnilam.tn.gov.in",
     role: "revenue_officer",
-    designation: "District Revenue Officer & Tehsildar",
-    department: "Revenue & Disaster Management, Tamil Nadu",
+    designation: "Tehsildar / Village Administrative Officer",
+    department: "Revenue & Disaster Management Department",
+    jurisdiction: "Sriperumbudur / Kanchipuram",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:10:00.000Z"
   },
@@ -1500,8 +1502,9 @@ export const demoUsers = [
     name: "P. Vignesh, LIS",
     email: "surveyor@surveyofindia.gov.in",
     role: "surveyor",
-    designation: "Head Licensed Land Surveyor (CORS GNSS)",
+    designation: "Directorate of Survey & Land Records",
     department: "Survey Settlement & Land Records (SSLR)",
+    jurisdiction: "Cadastral Survey Unit",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:12:00.000Z"
   },
@@ -1509,37 +1512,42 @@ export const demoUsers = [
     name: "Meenakshi Sundaram",
     email: "sro.sriperumbudur@tnreginet.gov.in",
     role: "sro",
-    designation: "Sub-Registrar (SRO Grade-I)",
+    designation: "Sub-Registrar / Registration & Stamps Department",
     department: "Registration & Stamps Department",
+    jurisdiction: "SRO Sriperumbudur",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:15:00.000Z"
-  },
-  {
-    name: "Vikram Malhotra",
-    email: "mortgages@iob.bank.in",
-    role: "bank",
-    designation: "Chief Credit Risk Officer (Mortgage Cell)",
-    department: "Indian Overseas Bank / Core Banking",
-    passwordHash: "",
-    lastLoginAt: "2026-08-20T10:18:00.000Z"
   },
   {
     name: "Hon. Justice B. Patil",
     email: "rccms.bench@judiciary.gov.in",
     role: "court",
-    designation: "Presiding Officer & Assistant Commissioner",
+    designation: "Revenue Court / RCCMS Judicial Officer",
     department: "Revenue Court Case Management System (RCCMS)",
+    jurisdiction: "Assistant Commissioner Revenue Bench",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:20:00.000Z"
+  },
+  {
+    name: "Vikram Malhotra",
+    email: "mortgages@iob.bank.in",
+    role: "bank",
+    designation: "Financial Institution / Core Banking",
+    department: "Indian Overseas Bank / Core Banking (Finacle)",
+    jurisdiction: "Mortgage & Hypothecation Cell",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:18:00.000Z"
   },
   {
     name: "Ananya Narayanan",
     email: "ananya.citizen@gmail.com",
     role: "citizen",
-    designation: "Citizen Landowner & Investor",
+    designation: "Public Landholder / Applicant",
     department: "Public User",
+    jurisdiction: "Citizen Services Portal",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:25:00.000Z"
   }
 ];
+
 

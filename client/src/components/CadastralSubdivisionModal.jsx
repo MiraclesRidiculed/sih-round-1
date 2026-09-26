@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CheckCircle2, Compass, Download, FileText, Layers, Scissors, ShieldAlert, X } from "lucide-react";
 import { approveSubdivisionApi, submitSubdivision } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { exportSurveyWorkPackage, saveSurveyOffline } from "../utils/offlineSurvey";
+import { exportSurveyWorkPackage } from "../utils/offlineSurvey";
 
 const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
   const { activeRole, permissions } = useAuth();
@@ -10,18 +10,19 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [subdivisionResult, setSubdivisionResult] = useState(null);
 
   if (!parcel) return null;
 
   const totalAcres = Number(parcel.areaInAcres || 1.0);
-  const areaA = Number((totalAcres * splitRatio).toFixed(2));
-  const areaB = Number((totalAcres - areaA).toFixed(2));
-
   const baseUlpin = parcel.ulpin || parcel.parcelId;
-  const childUlpinA = `${baseUlpin}-A`;
-  const childUlpinB = `${baseUlpin}-B`;
-
-  const existingSubdivision = parcel.subdivisionData?.activeSketch ? parcel.subdivisionData : null;
+  const existingSubdivision = subdivisionResult || (parcel.subdivisionData?.activeSketch ? parcel.subdivisionData : null);
+  const partA = existingSubdivision?.subdivisions?.find((part) => part.part === "A");
+  const partB = existingSubdivision?.subdivisions?.find((part) => part.part === "B");
+  const areaA = partA?.areaInAcres ?? Number((totalAcres * splitRatio).toFixed(2));
+  const areaB = partB?.areaInAcres ?? Number((totalAcres * (1 - splitRatio)).toFixed(2));
+  const childIdentifierA = partA?.childIdentifier || "Not generated for this legacy subdivision record";
+  const childIdentifierB = partB?.childIdentifier || "Not generated for this legacy subdivision record";
   const isApproved = existingSubdivision?.activeSketch?.approvalStatus === "APPROVED";
   const isPending = existingSubdivision?.activeSketch?.approvalStatus === "PENDING_APPROVAL";
 
@@ -29,22 +30,13 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
     setIsSubmitting(true);
     setErrorMessage("");
     try {
-      await submitSubdivision(parcel.parcelId, {
+      const result = await submitSubdivision(parcel.parcelId, {
         splitRatio,
         subdivisionReason: "Boundary Partition & Demarcation via CORS GNSS Rover",
         surveyorName: "P. Vignesh, LIS (Head Licensed Surveyor)"
       });
 
-      // Also cache offline
-      saveSurveyOffline({
-        parcelId: parcel.parcelId,
-        parentUlpin: baseUlpin,
-        sketchId: `SK-11E-${Date.now().toString().slice(-5)}`,
-        childUlpinA,
-        childUlpinB,
-        areaA,
-        areaB
-      });
+      setSubdivisionResult(result.subdivisionData);
 
       onUpdated?.();
     } catch (err) {
@@ -66,6 +58,7 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
       const res = await approveSubdivisionApi(parcel.parcelId, {
         approvedBy: "K. Annadurai, DRO & Tehsildar"
       });
+      setSubdivisionResult(res.subdivisionData);
       setApprovalMessage(res.message);
       onUpdated?.();
     } catch (err) {
@@ -80,10 +73,11 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
       sketchId: existingSubdivision?.sketchId || `SK-11E-${Date.now().toString().slice(-5)}`,
       parcelId: parcel.parcelId,
       parentUlpin: baseUlpin,
-      childUlpinA,
-      childUlpinB,
+      children: existingSubdivision?.subdivisions || [],
+      splitLine: existingSubdivision?.activeSketch?.splitLine || null,
       areaA,
       areaB,
+      identifierAlgorithm: existingSubdivision?.identifierAlgorithm || "Child identifiers are assigned by the server after geometry validation.",
       crs: "EPSG:4326 (WGS84)",
       surveyor: "P. Vignesh, LIS"
     });
@@ -106,7 +100,7 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                 <span className="text-xs text-earth-500">SSLR Cadastral Boundary Bifurcation & Demarcation</span>
               </div>
               <h3 className="text-lg font-black text-earth-950 sm:text-xl">
-                {parcel.parcelId} • Cadastral Subdivision & Sub-ULPIN Generator
+                {parcel.parcelId} • Cadastral Subdivision & Child Geometry
               </h3>
             </div>
           </div>
@@ -168,7 +162,12 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
             {/* Visual Polygon Cut Representation */}
             <div className="relative flex h-52 flex-col justify-between rounded-2xl border border-amber-300 bg-white p-4 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between text-[11px] text-earth-500 font-semibold border-b pb-1">
-                <span>Total Extent: {totalAcres} Acres</span>
+                <span>
+                  {partA?.geoJson && partB?.geoJson ? "Geometry Area" : "Recorded Extent (preview)"}:{" "}
+                  {partA?.geoJson && partB?.geoJson
+                    ? Number(existingSubdivision?.parentAreaInAcres ?? totalAcres).toFixed(4)
+                    : totalAcres} Acres
+                </span>
                 <span>Parent ULPIN: {baseUlpin}</span>
               </div>
 
@@ -179,7 +178,7 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                   className="flex flex-col items-center justify-center bg-blue-100/80 border-r-2 border-dashed border-red-600 transition-all text-center p-2"
                   style={{ width: `${Math.round(splitRatio * 100)}%` }}
                 >
-                  <span className="font-extrabold text-blue-900 text-xs">Part A ({Math.round(splitRatio * 100)}%)</span>
+                  <span className="font-extrabold text-blue-900 text-xs">Part A ({Math.round(partA?.sharePercent ?? splitRatio * 100)}%)</span>
                   <span className="font-mono text-xs font-bold text-earth-900">{areaA} Acres</span>
                   <span className="font-mono text-[10px] text-blue-800">{parcel.surveyNumber}/1</span>
                 </div>
@@ -189,7 +188,7 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                   className="flex flex-col items-center justify-center bg-emerald-100/80 transition-all text-center p-2"
                   style={{ width: `${Math.round((1 - splitRatio) * 100)}%` }}
                 >
-                  <span className="font-extrabold text-emerald-900 text-xs">Part B ({Math.round((1 - splitRatio) * 100)}%)</span>
+                  <span className="font-extrabold text-emerald-900 text-xs">Part B ({Math.round(partB?.sharePercent ?? (1 - splitRatio) * 100)}%)</span>
                   <span className="font-mono text-xs font-bold text-earth-900">{areaB} Acres</span>
                   <span className="font-mono text-[10px] text-emerald-800">{parcel.surveyNumber}/2</span>
                 </div>
@@ -201,7 +200,7 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
               </div>
             </div>
 
-            {/* Sub-ULPIN Breakdown Cards */}
+            {/* Child parcel geometry and project identifiers */}
             <div className="space-y-3 text-xs">
               {/* Child Parcel A */}
               <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 shadow-xs">
@@ -212,8 +211,9 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                   </span>
                 </div>
                 <div className="mt-2 space-y-1 font-mono text-[11px] text-earth-800">
-                  <p><span className="text-earth-500 font-sans">Sub-ULPIN:</span> <strong>{childUlpinA}</strong></p>
-                  <p><span className="text-earth-500 font-sans">Extent:</span> {areaA} Acres ({Math.round(splitRatio * 100)}% Share)</p>
+                  <p><span className="text-earth-500 font-sans">Project child ID:</span> <strong>{childIdentifierA}</strong></p>
+                  <p><span className="text-earth-500 font-sans">Extent:</span> {areaA} Acres ({Math.round(partA?.sharePercent ?? splitRatio * 100)}% Share)</p>
+                  {partA?.geoJson && <p className="text-emerald-800">Validated child Polygon geometry generated</p>}
                   <p><span className="text-earth-500 font-sans">Recorded Holder:</span> {parcel.currentOwners[0]?.name || "Co-Owner A"}</p>
                 </div>
               </div>
@@ -227,11 +227,15 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                   </span>
                 </div>
                 <div className="mt-2 space-y-1 font-mono text-[11px] text-earth-800">
-                  <p><span className="text-earth-500 font-sans">Sub-ULPIN:</span> <strong>{childUlpinB}</strong></p>
-                  <p><span className="text-earth-500 font-sans">Extent:</span> {areaB} Acres ({Math.round((1 - splitRatio) * 100)}% Share)</p>
+                  <p><span className="text-earth-500 font-sans">Project child ID:</span> <strong>{childIdentifierB}</strong></p>
+                  <p><span className="text-earth-500 font-sans">Extent:</span> {areaB} Acres ({Math.round(partB?.sharePercent ?? (1 - splitRatio) * 100)}% Share)</p>
+                  {partB?.geoJson && <p className="text-emerald-800">Validated child Polygon geometry generated</p>}
                   <p><span className="text-earth-500 font-sans">Proposed Transferee:</span> Co-Owner B / Transferee</p>
                 </div>
               </div>
+              <p className="px-1 text-[10px] text-earth-600">
+                Child IDs are deterministic project identifiers, not official ULPINs. Areas are calculated from the validated parcel geometry.
+              </p>
             </div>
           </div>
 
@@ -250,7 +254,10 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
                 max="0.8"
                 step="0.05"
                 value={splitRatio}
-                onChange={(e) => setSplitRatio(Number(e.target.value))}
+                onChange={(e) => {
+                  setSubdivisionResult(null);
+                  setSplitRatio(Number(e.target.value));
+                }}
                 className="w-full cursor-pointer accent-amber-600"
               />
               <div className="mt-1 flex justify-between text-[10px] text-earth-500">
@@ -268,7 +275,9 @@ const CadastralSubdivisionModal = ({ parcel, onClose, onUpdated }) => {
             <button
               type="button"
               onClick={handleExportWorkPackage}
-              className="inline-flex items-center gap-1.5 rounded-full border border-earth-300 bg-white px-3.5 py-2 text-xs font-semibold text-earth-800 shadow-xs hover:bg-earth-50"
+              disabled={!partA?.geoJson || !partB?.geoJson}
+              title={!partA?.geoJson || !partB?.geoJson ? "Generate and validate the child geometries before exporting." : ""}
+              className="inline-flex items-center gap-1.5 rounded-full border border-earth-300 bg-white px-3.5 py-2 text-xs font-semibold text-earth-800 shadow-xs hover:bg-earth-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={14} />
               Export 11E Work Package (Offline JSON)

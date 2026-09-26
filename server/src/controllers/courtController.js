@@ -1,6 +1,8 @@
 import { Parcel } from "../models/Parcel.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { eventBus } from "../events/eventBus.js";
+import { RccmsCase } from "../models/RccmsCase.js";
+import { fileRccmsCase, transitionRccmsCase } from "../services/rccmsCaseService.js";
 
 export const issueCourtInjunction = asyncHandler(async (req, res) => {
   const { parcelId } = req.params;
@@ -18,6 +20,21 @@ export const issueCourtInjunction = asyncHandler(async (req, res) => {
   if (!parcel) {
     return res.status(404).json({ message: "Parcel not found" });
   }
+
+  let rccmsCase = await RccmsCase.findOne({ caseIdentifier: caseNumber });
+  if (!rccmsCase) {
+    rccmsCase = await fileRccmsCase({
+      parcel,
+      req,
+      body: { ...req.body, caseIdentifier: caseNumber }
+    });
+    await transitionRccmsCase(rccmsCase, "NOTICE_ISSUED", { req, note: "Notice issued before interim injunction." });
+  }
+  rccmsCase = await transitionRccmsCase(rccmsCase, "INTERIM_INJUNCTION", {
+    req,
+    note: "Interim injunction / stay order issued.",
+    order: { type: "INTERIM_INJUNCTION", reference: orderReference, terms: injunctionTerms }
+  });
 
   const hexChars = "0123456789abcdef";
   let randomHash = "0x";
@@ -78,7 +95,8 @@ export const issueCourtInjunction = asyncHandler(async (req, res) => {
     message: "Court stay injunction issued and transaction lock enforced across Land Stack DPI",
     parcelId: parcel.parcelId,
     disputeRecord: parcel.disputeRecord,
-    workflow: workflowEntry
+    workflow: workflowEntry,
+    case: rccmsCase
   });
 });
 
@@ -90,6 +108,22 @@ export const liftCourtInjunction = asyncHandler(async (req, res) => {
   if (!parcel) {
     return res.status(404).json({ message: "Parcel not found" });
   }
+
+  const rccmsCase = await RccmsCase.findOne({
+    parcelId,
+    currentStatus: "HEARING_DECREE"
+  }).sort({ updatedAt: -1 });
+  if (!rccmsCase) {
+    return res.status(409).json({
+      error: "INVALID_CASE_TRANSITION",
+      message: "A case must complete its hearing/decree state before the stay can be vacated."
+    });
+  }
+  const updatedCase = await transitionRccmsCase(rccmsCase, "STAY_VACATED", {
+    req,
+    note: remarks,
+    order: { type: "STAY_VACATED", reference: orderReference, terms: remarks }
+  });
 
   const hexChars = "0123456789abcdef";
   let randomHash = "0x";
@@ -136,8 +170,58 @@ export const liftCourtInjunction = asyncHandler(async (req, res) => {
   res.json({
     message: "Injunction vacated and transaction lock removed",
     parcelId: parcel.parcelId,
-    disputeRecord: parcel.disputeRecord
+    disputeRecord: parcel.disputeRecord,
+    case: updatedCase
   });
+});
+
+export const fileCase = asyncHandler(async (req, res) => {
+  const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
+  if (!parcel) return res.status(404).json({ message: "Parcel not found" });
+  const rccmsCase = await fileRccmsCase({ parcel, body: req.body || {}, req });
+  res.status(201).json({ case: rccmsCase });
+});
+
+export const transitionCase = asyncHandler(async (req, res) => {
+  const rccmsCase = await RccmsCase.findOne({ caseIdentifier: req.params.caseIdentifier });
+  if (!rccmsCase) return res.status(404).json({ message: "RCCMS case not found" });
+  const updatedCase = await transitionRccmsCase(rccmsCase, req.body?.toState, {
+    req,
+    note: req.body?.note || "",
+    order: req.body?.order
+  });
+
+  const parcel = await Parcel.findOne({ parcelId: rccmsCase.parcelId });
+  if (parcel && updatedCase.currentStatus === "INTERIM_INJUNCTION") {
+    parcel.disputeRecord = {
+      ...(parcel.disputeRecord || {}),
+      hasActiveInjunction: true,
+      transactionLock: true,
+      caseNumber: updatedCase.caseIdentifier,
+      orderReference: req.body?.order?.reference || parcel.disputeRecord?.orderReference || "",
+      injunctionStatus: "Active Court Injunction (Stay on Alienation)",
+      injunctionTerms: req.body?.order?.terms || parcel.disputeRecord?.injunctionTerms || ""
+    };
+    await parcel.save();
+  } else if (parcel && updatedCase.currentStatus === "STAY_VACATED") {
+    parcel.disputeRecord = {
+      ...(parcel.disputeRecord || {}),
+      hasActiveInjunction: false,
+      transactionLock: false,
+      injunctionStatus: "Injunction Vacated / Disposed",
+      injunctionTerms: "No active restriction",
+      vacatedDate: new Date().toISOString().split("T")[0]
+    };
+    await parcel.save();
+  }
+
+  res.json({ case: updatedCase });
+});
+
+export const getCase = asyncHandler(async (req, res) => {
+  const rccmsCase = await RccmsCase.findOne({ caseIdentifier: req.params.caseIdentifier }).lean();
+  if (!rccmsCase) return res.status(404).json({ message: "RCCMS case not found" });
+  res.json({ case: rccmsCase });
 });
 
 export const getDisputeDetails = asyncHandler(async (req, res) => {

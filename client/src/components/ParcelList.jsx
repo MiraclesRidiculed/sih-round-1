@@ -61,13 +61,13 @@ const ParcelList = ({ parcels = [], title }) => (
                   {parcel.verificationHint?.status || "attention"}
                 </StatusPill>
                 {isCourtLocked && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-xs animate-pulse">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-xs">
                     <Lock size={10} />
                     Court Stay Active
                   </span>
                 )}
                 {hasAiAlert && !isCourtLocked && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800 animate-pulse">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
                     <Zap size={10} />
                     AI Alert
                   </span>

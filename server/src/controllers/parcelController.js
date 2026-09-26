@@ -5,6 +5,22 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { buildParcelVerificationReport } from "../services/parcelVerificationService.js";
 import { env } from "../config/env.js";
 import { eventBus } from "../events/eventBus.js";
+import { getActiveStatutoryRestriction } from "../services/statutoryRestrictionService.js";
+import { splitParcelPolygon } from "../services/cadastralSubdivisionService.js";
+import { FieldSurveySubmission } from "../models/FieldSurveySubmission.js";
+import { RccmsCase } from "../models/RccmsCase.js";
+import { assembleParcelCentricRecord } from "../services/parcelCentricRecordService.js";
+import {
+  toCitizenParcelDetail,
+  toCitizenParcelSearchResult,
+  toOfficerParcelDetail,
+  toOfficerParcelSearchResult
+} from "../services/citizenParcelViewService.js";
+import {
+  createParcelTransaction,
+  getEffectiveParcelTransaction,
+  transitionParcelTransaction
+} from "../services/parcelTransactionService.js";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -25,8 +41,73 @@ const generateRandomHash = () => {
   return hash;
 };
 
+const isValidSurveyPolygon = (geometry) =>
+  Array.isArray(geometry?.coordinates) &&
+  geometry.coordinates.length > 0 &&
+  geometry.coordinates.every((ring) =>
+    Array.isArray(ring) &&
+    ring.length >= 4 &&
+    ring.every((position) =>
+      Array.isArray(position) &&
+      Number.isFinite(position[0]) &&
+      Number.isFinite(position[1]) &&
+      position[0] >= -180 &&
+      position[0] <= 180 &&
+      position[1] >= -90 &&
+      position[1] <= 90
+    ) &&
+    ring[0][0] === ring[ring.length - 1][0] &&
+    ring[0][1] === ring[ring.length - 1][1]
+  );
+
+const rejectIfStatutorilyRestricted = async (parcel, res, operation) => {
+  const restriction = await getActiveStatutoryRestriction(parcel);
+  if (!restriction) return false;
+
+  res.status(403).json({
+    error: "STATUTORY_TRANSFER_RESTRICTION",
+    blocked: true,
+    legalBasis: "Active RCCMS stay restriction",
+    administrativeReason: `${operation} cannot proceed. ${restriction.reason}`,
+    message: `${operation} cannot proceed. ${restriction.reason}`,
+    restriction
+  });
+  return true;
+};
+
 export const listParcels = asyncHandler(async (req, res) => {
   const { search = "", district = "", state = "" } = req.query;
+
+  if (req.user?.role === "citizen") {
+    const ulpin = String(search).trim();
+    if (!ulpin) {
+      res.json({ count: 0, items: [] });
+      return;
+    }
+    const parcel = await Parcel.findOne({
+      ulpin: new RegExp(`^${escapeRegex(ulpin)}$`, "i")
+    }).lean();
+    const items = parcel ? [toCitizenParcelSearchResult(parcel)] : [];
+    res.json({ count: items.length, items });
+    return;
+  }
+
+  if (req.user?.role !== "admin") {
+    const searchTerm = String(search).trim();
+    const parcels = searchTerm
+      ? await Parcel.find({
+          $or: [
+            { ulpin: new RegExp(`^${escapeRegex(searchTerm)}$`, "i") },
+            { parcelId: new RegExp(`^${escapeRegex(searchTerm)}$`, "i") },
+            { surveyNumber: new RegExp(`^${escapeRegex(searchTerm)}$`, "i") }
+          ]
+        }).sort({ state: 1, district: 1, village: 1 }).limit(50).lean()
+      : [];
+    const items = parcels.map(toOfficerParcelSearchResult);
+    res.json({ count: items.length, items });
+    return;
+  }
+
   const filters = [];
 
   if (search) {
@@ -64,33 +145,33 @@ export const listParcels = asyncHandler(async (req, res) => {
   res.json({
     count: parcels.length,
     items: parcels.map((parcel) => ({
-      parcelId: parcel.parcelId,
-      ulpin: parcel.ulpin || null,
-      surveyNumber: parcel.surveyNumber,
-      hissaNumber: parcel.hissaNumber,
-      khataNumber: parcel.khataNumber,
-      propertyId: parcel.propertyId,
-      state: parcel.state || "Karnataka",
-      stateProfile: parcel.stateProfile || {},
-      district: parcel.district,
-      taluk: parcel.taluk,
-      hobli: parcel.hobli,
-      village: parcel.village,
-      areaInAcres: parcel.areaInAcres,
-      landClassification: parcel.landClassification,
-      landUse: parcel.landUse,
-      geoJson: parcel.geoJson,
-      currentOwners: parcel.currentOwners,
-      verificationHint: parcel.verificationHint,
-      baseLayer: parcel.baseLayer || {},
-      essentialLayers: parcel.essentialLayers || {},
-      additionalLayers: parcel.additionalLayers || {},
-      aiGeospatial: parcel.aiGeospatial || {},
-      departmentalWorkflows: parcel.departmentalWorkflows || [],
-      disputeRecord: parcel.disputeRecord || {},
-      subdivisionData: parcel.subdivisionData || {},
-      verticalStrata: parcel.verticalStrata || {}
-    }))
+        parcelId: parcel.parcelId,
+        ulpin: parcel.ulpin || null,
+        surveyNumber: parcel.surveyNumber,
+        hissaNumber: parcel.hissaNumber,
+        khataNumber: parcel.khataNumber,
+        propertyId: parcel.propertyId,
+        state: parcel.state || "Karnataka",
+        stateProfile: parcel.stateProfile || {},
+        district: parcel.district,
+        taluk: parcel.taluk,
+        hobli: parcel.hobli,
+        village: parcel.village,
+        areaInAcres: parcel.areaInAcres,
+        landClassification: parcel.landClassification,
+        landUse: parcel.landUse,
+        geoJson: parcel.geoJson,
+        currentOwners: parcel.currentOwners,
+        verificationHint: parcel.verificationHint,
+        baseLayer: parcel.baseLayer || {},
+        essentialLayers: parcel.essentialLayers || {},
+        additionalLayers: parcel.additionalLayers || {},
+        aiGeospatial: parcel.aiGeospatial || {},
+        departmentalWorkflows: parcel.departmentalWorkflows || [],
+        disputeRecord: parcel.disputeRecord || {},
+        subdivisionData: parcel.subdivisionData || {},
+        verticalStrata: parcel.verticalStrata || {}
+      }))
   });
 });
 
@@ -102,18 +183,117 @@ export const getParcelDetail = asyncHandler(async (req, res) => {
     return;
   }
 
-  const [documents, ownershipHistory, verification] = await Promise.all([
-    DocumentRecord.find({ parcel: parcel._id }).sort({ createdAt: 1 }).lean(),
-    OwnershipEvent.find({ parcel: parcel._id }).sort({ eventDate: 1 }).lean(),
-    buildParcelVerificationReport(parcel)
+  const linkedRecordFilter = parcel.ulpin
+    ? { $or: [{ ulpin: parcel.ulpin }, { parcel: parcel._id }] }
+    : { parcel: parcel._id };
+  const isCitizen = req.user?.role === "citizen";
+  const isAdmin = req.user?.role === "admin";
+  const canViewCourtRecords = isAdmin || req.user?.role === "court";
+  const rccmsCasesQuery = RccmsCase.find(linkedRecordFilter).sort({ updatedAt: -1 });
+  if (!canViewCourtRecords) rccmsCasesQuery.select("parcelId caseIdentifier currentStatus updatedAt");
+  const [documents, ownershipHistory, verification, rccmsCases, surveySubmissions] = await Promise.all([
+    isAdmin ? DocumentRecord.find({ parcel: parcel._id }).sort({ createdAt: 1 }).lean() : [],
+    isAdmin || req.user?.role === "revenue_officer"
+      ? OwnershipEvent.find({ parcel: parcel._id }).sort({ eventDate: 1 }).lean()
+      : [],
+    isAdmin ? buildParcelVerificationReport(parcel) : null,
+    rccmsCasesQuery.lean(),
+    isAdmin || req.user?.role === "surveyor"
+      ? FieldSurveySubmission.find(linkedRecordFilter).sort({ surveyDate: -1 }).lean()
+      : []
   ]);
+
+  const unifiedRecord = assembleParcelCentricRecord({
+    parcel,
+    documents,
+    ownershipHistory,
+    rccmsCases,
+    surveySubmissions
+  });
+
+  if (isCitizen) {
+    res.json(toCitizenParcelDetail(parcel, unifiedRecord, req.user.id));
+    return;
+  }
+
+  if (!isAdmin) {
+    res.json(toOfficerParcelDetail(parcel, unifiedRecord, req.user.role, req.user.id));
+    return;
+  }
 
   res.json({
     ...parcel,
     documents,
     ownershipHistory,
+    unifiedRecord,
     verification,
     qr: buildQrPayload(parcel)
+  });
+});
+
+export const createParcelTransactionApplication = asyncHandler(async (req, res) => {
+  const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
+  if (!parcel) return res.status(404).json({ message: "Parcel not found." });
+
+  const transactionType = req.body?.transactionType;
+  if (typeof transactionType !== "string" || !transactionType.trim() || transactionType.trim().length > 100) {
+    return res.status(400).json({ message: "Provide a transaction type of up to 100 characters." });
+  }
+
+  const transaction = createParcelTransaction({
+    parcel,
+    actor: { id: req.user.id, role: req.user.role },
+    transactionType
+  });
+  parcel.departmentalWorkflows = [transaction, ...(parcel.departmentalWorkflows || [])];
+  await parcel.save();
+
+  const restriction = await getActiveStatutoryRestriction(parcel);
+  res.status(201).json({
+    transaction: getEffectiveParcelTransaction(transaction, restriction),
+    prototype: true,
+    notice: "This application is recorded in the local Land Stack prototype and is not a government registration decision."
+  });
+});
+
+export const updateParcelTransactionStatus = asyncHandler(async (req, res) => {
+  const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
+  if (!parcel) return res.status(404).json({ message: "Parcel not found." });
+
+  const workflows = parcel.departmentalWorkflows || [];
+  const transactionIndex = workflows.findIndex((workflow) =>
+    workflow?.workflowType === "LAND_TRANSACTION" && workflow.id === req.params.transactionId
+  );
+  if (transactionIndex < 0) {
+    return res.status(404).json({ message: "Transaction application not found for this parcel." });
+  }
+
+  if (await rejectIfStatutorilyRestricted(parcel, res, "Transaction status update")) return;
+
+  const current = workflows[transactionIndex];
+  let updated;
+  try {
+    updated = transitionParcelTransaction({
+      transaction: current,
+      nextStatus: req.body?.status,
+      actor: { id: req.user.id, role: req.user.role },
+      note: req.body?.note
+    });
+  } catch (error) {
+    if (error instanceof RangeError || error instanceof TypeError) {
+      return res.status(400).json({ message: error.message });
+    }
+    throw error;
+  }
+
+  workflows[transactionIndex] = updated;
+  parcel.departmentalWorkflows = workflows;
+  await parcel.save();
+
+  res.json({
+    transaction: updated,
+    prototype: true,
+    notice: "The status reflects this local prototype workflow and is not a government registration decision."
   });
 });
 
@@ -140,6 +320,75 @@ export const getParcelQr = asyncHandler(async (req, res) => {
   res.json(buildQrPayload(parcel));
 });
 
+export const submitFieldSurvey = asyncHandler(async (req, res) => {
+  const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
+  if (!parcel) return res.status(404).json({ message: "Parcel not found" });
+
+  const {
+    offlineId,
+    surveyDate,
+    observations,
+    observedCoordinate
+  } = req.body || {};
+  if (
+    typeof offlineId !== "string" ||
+    !offlineId.trim() ||
+    !Number.isFinite(Date.parse(surveyDate)) ||
+    typeof observations !== "string" ||
+    !observations.trim() ||
+    parcel.geoJson?.geometry?.type !== "Polygon" ||
+    !isValidSurveyPolygon(parcel.geoJson.geometry)
+  ) {
+    return res.status(400).json({ message: "A valid queued field survey and cadastral Polygon are required." });
+  }
+  if (
+    observedCoordinate &&
+    (!Number.isFinite(observedCoordinate.latitude) ||
+      observedCoordinate.latitude < -90 ||
+      observedCoordinate.latitude > 90 ||
+      !Number.isFinite(observedCoordinate.longitude) ||
+      observedCoordinate.longitude < -180 ||
+      observedCoordinate.longitude > 180)
+  ) {
+    return res.status(400).json({ message: "The observed GPS coordinate is invalid." });
+  }
+
+  const filter = { offlineId: offlineId.trim() };
+  const surveyorName = req.user?.name || req.user?.email;
+  if (!surveyorName || !req.user?.id) {
+    return res.status(401).json({ error: "UNAUTHORIZED", message: "A valid authenticated surveyor identity is required." });
+  }
+  let submission;
+  try {
+    submission = await FieldSurveySubmission.findOneAndUpdate(
+      filter,
+      {
+        $setOnInsert: {
+          parcel: parcel._id,
+          parcelId: parcel.parcelId,
+          ulpin: parcel.ulpin || "",
+          surveyNumber: parcel.surveyNumber,
+          surveyorId: String(req.user.id),
+          surveyorName,
+          surveyDate: new Date(surveyDate),
+          observations: observations.trim(),
+          observedCoordinate: observedCoordinate || null,
+          cadastralGeometry: parcel.geoJson
+        }
+      },
+      { new: true, upsert: true, runValidators: true }
+    );
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+    submission = await FieldSurveySubmission.findOne(filter);
+    if (!submission) throw error;
+  }
+  if (submission.parcelId !== parcel.parcelId) {
+    return res.status(409).json({ message: "This offline survey identifier is already associated with a different parcel." });
+  }
+  res.status(201).json({ offlineId: submission.offlineId, synchronized: true });
+});
+
 export const addParcelWorkflow = asyncHandler(async (req, res) => {
   const { parcelId } = req.params;
   const {
@@ -157,50 +406,15 @@ export const addParcelWorkflow = asyncHandler(async (req, res) => {
   }
 
   // Pre-Registration Anti-Fraud Lock Check
+  const action = String(actionType).toUpperCase();
   const isDeedOrTransfer =
-    actionType === "SALE_DEED" ||
-    actionType === "REGISTRATION" ||
+    ["SALE_DEED", "REGISTRATION", "MUTATION", "E_MUTATION"].includes(action) ||
     department.toLowerCase().includes("registration") ||
     department.toLowerCase().includes("sro") ||
-    title.toLowerCase().includes("sale deed") ||
-    title.toLowerCase().includes("conveyance");
+    /sale deed|conveyance|mutation|ownership transfer|patta transfer/i.test(title);
 
-  if (isDeedOrTransfer && parcel.disputeRecord?.transactionLock) {
-    const blockedCount = (parcel.disputeRecord.blockedAttemptsCount || 0) + 1;
-    parcel.disputeRecord.blockedAttemptsCount = blockedCount;
-
-    const blockedWorkflow = {
-      id: `WF-BLK-${Date.now().toString().slice(-6)}`,
-      department: "Sub-Registrar (SRO) Anti-Fraud Gate",
-      title: "🚨 Transfer Registration Blocked",
-      status: "Blocked by Law",
-      applicant,
-      initiatedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      remarks: `Attempted sale deed registration blocked under Section 52 Transfer of Property Act (Lis Pendens) & Civil Court Stay (${parcel.disputeRecord.caseNumber || "Injunction Active"}). Attempt #${blockedCount}.`,
-      txHash: generateRandomHash()
-    };
-
-    parcel.departmentalWorkflows = [blockedWorkflow, ...(parcel.departmentalWorkflows || [])];
-    await parcel.save();
-
-    eventBus.broadcast("TRANSACTION_BLOCKED", {
-      parcelId: parcel.parcelId,
-      ulpin: parcel.ulpin,
-      caseNumber: parcel.disputeRecord.caseNumber,
-      courtName: parcel.disputeRecord.courtName,
-      legalBasis: "Section 52 Transfer of Property Act — Lis Pendens (Active Injunction)",
-      message: `Registration blocked on ${parcel.parcelId} due to active court order.`
-    });
-
-    return res.status(403).json({
-      error: "TRANSACTION_BLOCKED",
-      blocked: true,
-      legalBasis: "Section 52, Transfer of Property Act (Lis Pendens) & Civil Court Injunction",
-      message: `🚨 REGISTRATION BLOCKED: Active Court Injunction / Transaction Restriction Detected on parcel ${parcel.parcelId}. Transfer not permitted during pendency of litigation.`,
-      dispute: parcel.disputeRecord,
-      workflow: blockedWorkflow
-    });
+  if (isDeedOrTransfer && await rejectIfStatutorilyRestricted(parcel, res, "Deed registration or mutation")) {
+    return;
   }
 
   const newWorkflow = {
@@ -234,131 +448,6 @@ export const addParcelWorkflow = asyncHandler(async (req, res) => {
   });
 });
 
-export const simulateSroDeedFastTrack = asyncHandler(async (req, res) => {
-  const { parcelId } = req.params;
-  const { buyerName = "Aaditya Venkatesh", consideration = "₹ 1,15,00,000", stampDuty = "₹ 5,75,000" } = req.body;
-
-  const parcel = await Parcel.findOne({ parcelId });
-  if (!parcel) {
-    return res.status(404).json({ message: "Parcel not found" });
-  }
-
-  // Pre-Registration Anti-Fraud Lock
-  if (parcel.disputeRecord?.transactionLock) {
-    const blockedCount = (parcel.disputeRecord.blockedAttemptsCount || 0) + 1;
-    parcel.disputeRecord.blockedAttemptsCount = blockedCount;
-
-    const blockedWorkflow = {
-      id: `WF-BLK-${Date.now().toString().slice(-6)}`,
-      department: "Sub-Registrar (SRO) Anti-Fraud Gate",
-      title: "🚨 Fast-Track Deed Registration Blocked",
-      status: "Blocked by Law",
-      applicant: buyerName,
-      initiatedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      remarks: `Attempted sale deed registration blocked under Section 52 Transfer of Property Act (Lis Pendens) & Civil Court Stay (${parcel.disputeRecord.caseNumber || "Injunction Active"}). Attempt #${blockedCount}.`,
-      txHash: generateRandomHash()
-    };
-
-    parcel.departmentalWorkflows = [blockedWorkflow, ...(parcel.departmentalWorkflows || [])];
-    await parcel.save();
-
-    eventBus.broadcast("TRANSACTION_BLOCKED", {
-      parcelId: parcel.parcelId,
-      ulpin: parcel.ulpin,
-      caseNumber: parcel.disputeRecord.caseNumber,
-      courtName: parcel.disputeRecord.courtName,
-      legalBasis: "Section 52 Transfer of Property Act — Lis Pendens",
-      message: `Registration blocked on ${parcel.parcelId} due to active court order.`
-    });
-
-    return res.status(403).json({
-      error: "TRANSACTION_BLOCKED",
-      blocked: true,
-      legalBasis: "Section 52, Transfer of Property Act (Lis Pendens) & Civil Court Injunction",
-      message: `🚨 REGISTRATION BLOCKED: Active Court Injunction / Transaction Restriction Detected on parcel ${parcel.parcelId}. Deed registration denied.`,
-      dispute: parcel.disputeRecord
-    });
-  }
-
-  // 1. SRO Deed Registration
-  const deedNumber = `DOC-${new Date().getFullYear()}-SRO-${Date.now().toString().slice(-5)}`;
-  const sroWorkflow = {
-    id: `WF-SRO-${Date.now().toString().slice(-5)}`,
-    department: "Sub-Registrar (SRO)",
-    title: `Sale Deed Registered (${deedNumber})`,
-    status: "Registered",
-    applicant: buyerName,
-    initiatedAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-    remarks: `Deed executed: Consideration ${consideration}, Stamp Duty ${stampDuty} paid. Electronic Index-II generated.`,
-    txHash: generateRandomHash()
-  };
-
-  // 2. Automated e-Mutation Trigger (Inter-agency Zero-Lag Sync)
-  const mutationNumber = `MR-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
-  const mutationWorkflow = {
-    id: `WF-MUT-${Date.now().toString().slice(-5)}`,
-    department: "Revenue Department (Bhoomi / Tamil Nilam)",
-    title: `Automated e-Mutation Sanctioned (${mutationNumber})`,
-    status: "Sanctioned in RoR",
-    applicant: buyerName,
-    initiatedAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-    remarks: `Direct SRO API hook triggered automatic e-Mutation under DPI interoperability protocol. Updated digital Record of Rights.`,
-    txHash: generateRandomHash()
-  };
-
-  // Update current owner
-  const previousOwner = parcel.currentOwners[0]?.name || "Prior Landowner";
-  parcel.currentOwners = [
-    {
-      name: buyerName,
-      relation: "Transferee via Registered Sale Deed",
-      sharePercent: 100,
-      identifierMasked: `XXXX${Math.floor(1000 + Math.random() * 9000)}`
-    }
-  ];
-
-  parcel.departmentalWorkflows = [mutationWorkflow, sroWorkflow, ...(parcel.departmentalWorkflows || [])];
-  parcel.verificationHint = {
-    status: "verified",
-    summary: `Transferred to ${buyerName} via registered deed ${deedNumber} with automated zero-lag e-Mutation ${mutationNumber}.`
-  };
-
-  await parcel.save();
-
-  // Broadcast real-time events across agencies
-  eventBus.broadcast("DEED_REGISTERED", {
-    parcelId: parcel.parcelId,
-    ulpin: parcel.ulpin,
-    deedNumber,
-    buyerName,
-    previousOwner,
-    consideration,
-    summary: `SRO Registered Sale Deed ${deedNumber} in favor of ${buyerName}`
-  });
-
-  setTimeout(() => {
-    eventBus.broadcast("MUTATION_COMPLETED", {
-      parcelId: parcel.parcelId,
-      ulpin: parcel.ulpin,
-      mutationNumber,
-      newOwner: buyerName,
-      summary: `Automated e-Mutation ${mutationNumber} reflected in digital RoR / Patta`
-    });
-  }, 400);
-
-  res.json({
-    message: "Deed registered & automated e-Mutation executed in under 1s across Land Stack DPI",
-    parcelId: parcel.parcelId,
-    deedNumber,
-    mutationNumber,
-    newOwner: buyerName,
-    workflows: [sroWorkflow, mutationWorkflow]
-  });
-});
-
 export const subdivideParcel = asyncHandler(async (req, res) => {
   const { parcelId } = req.params;
   const {
@@ -372,20 +461,11 @@ export const subdivideParcel = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Parcel not found" });
   }
 
-  if (parcel.disputeRecord?.transactionLock) {
-    return res.status(403).json({
-      error: "SUBDIVISION_RESTRICTED",
-      message: `🔒 Subdivision Blocked: Parcel ${parcel.parcelId} is under active court stay. Cadastral alterations prohibited.`
-    });
-  }
-
-  const totalAcres = Number(parcel.areaInAcres || 1.0);
-  const areaA = Number((totalAcres * splitRatio).toFixed(2));
-  const areaB = Number((totalAcres - areaA).toFixed(2));
+  if (await rejectIfStatutorilyRestricted(parcel, res, "Subdivision")) return;
 
   const baseUlpin = parcel.ulpin || parcel.parcelId;
-  const childUlpinA = `${baseUlpin}-A`;
-  const childUlpinB = `${baseUlpin}-B`;
+  const split = splitParcelPolygon(parcel.geoJson, splitRatio, baseUlpin);
+  const [partA, partB] = split.children;
 
   const childSurveyA = `${parcel.surveyNumber}/1`;
   const childSurveyB = `${parcel.surveyNumber}/2`;
@@ -398,38 +478,50 @@ export const subdivideParcel = asyncHandler(async (req, res) => {
     subdivisionReason,
     surveyorName,
     sketchId,
+    parentParcelId: parcel.parcelId,
     parentUlpin: baseUlpin,
-    parentAreaAcres: totalAcres,
+    parentAreaSquareMeters: split.parentAreaSquareMeters,
+    parentAreaInAcres: split.parentAreaInAcres,
+    recordedParentAreaInAcres: parcel.areaInAcres,
+    areaSource: "PARENT GEOJSON GEOMETRY",
+    geometryAlgorithm: split.algorithm,
+    identifierAlgorithm: split.identifierAlgorithm,
     activeSketch: {
       sketchId,
       surveyDate: new Date().toISOString().split("T")[0],
       surveyor: surveyorName,
       crs: "EPSG:4326 (WGS84)",
-      scale: "1:1000",
-      northOrientation: "0° True North",
+      splitAxis: split.splitAxis,
+      splitLine: split.splitLine,
       approvalStatus: "PENDING_APPROVAL",
-      approvalAuthority: "Tehsildar / Assistant Director Land Records (ADLR)",
-      demarcationLineCoords: [
-        [12.9326, 79.9182],
-        [12.9326, 79.9224]
-      ]
+      approvalAuthority: "Tehsildar / Assistant Director Land Records (ADLR)"
     },
     subdivisions: [
       {
         part: "A",
-        subUlpin: childUlpinA,
+        childIdentifier: partA.childIdentifier,
+        identifierType: partA.identifierType,
+        parentParcelId: parcel.parcelId,
+        parentIdentifier: baseUlpin,
+        geoJson: partA.geoJson,
+        areaSquareMeters: partA.areaSquareMeters,
         surveyNumber: childSurveyA,
-        areaInAcres: areaA,
-        sharePercent: Math.round(splitRatio * 100),
+        areaInAcres: Number(partA.areaInAcres.toFixed(4)),
+        sharePercent: Number(partA.sharePercent.toFixed(4)),
         status: "Demarcated",
         proposedOwner: parcel.currentOwners[0]?.name || "Co-Owner A"
       },
       {
         part: "B",
-        subUlpin: childUlpinB,
+        childIdentifier: partB.childIdentifier,
+        identifierType: partB.identifierType,
+        parentParcelId: parcel.parcelId,
+        parentIdentifier: baseUlpin,
+        geoJson: partB.geoJson,
+        areaSquareMeters: partB.areaSquareMeters,
         surveyNumber: childSurveyB,
-        areaInAcres: areaB,
-        sharePercent: Math.round((1 - splitRatio) * 100),
+        areaInAcres: Number(partB.areaInAcres.toFixed(4)),
+        sharePercent: Number(partB.sharePercent.toFixed(4)),
         status: "Demarcated",
         proposedOwner: "Co-Owner B / Transferee"
       }
@@ -446,7 +538,7 @@ export const subdivideParcel = asyncHandler(async (req, res) => {
     applicant: surveyorName,
     initiatedAt: new Date().toISOString(),
     completedAt: null,
-    remarks: `Subdivision into Part A (${areaA} Acres, ${childUlpinA}) and Part B (${areaB} Acres, ${childUlpinB}). Pending Tehsildar sanction.`,
+    remarks: `Subdivision into Part A (${partA.areaInAcres.toFixed(4)} Acres, ${partA.childIdentifier}) and Part B (${partB.areaInAcres.toFixed(4)} Acres, ${partB.childIdentifier}). Pending Tehsildar sanction.`,
     txHash: generateRandomHash()
   };
 
@@ -457,10 +549,10 @@ export const subdivideParcel = asyncHandler(async (req, res) => {
     parcelId: parcel.parcelId,
     sketchId,
     surveyorName,
-    childUlpinA,
-    childUlpinB,
-    areaA,
-    areaB,
+    childIdentifierA: partA.childIdentifier,
+    childIdentifierB: partB.childIdentifier,
+    areaA: partA.areaInAcres,
+    areaB: partB.areaInAcres,
     summary: `11E Survey Subdivision proposed for ${parcel.parcelId} by Surveyor ${surveyorName}`
   });
 
@@ -484,6 +576,8 @@ export const approveSubdivision = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No active subdivision sketch found to approve" });
   }
 
+  if (await rejectIfStatutorilyRestricted(parcel, res, "Subdivision approval")) return;
+
   parcel.subdivisionData.activeSketch.approvalStatus = "APPROVED";
   parcel.subdivisionData.activeSketch.approvedAt = new Date().toISOString();
   parcel.subdivisionData.activeSketch.approvedBy = approvedBy;
@@ -496,7 +590,7 @@ export const approveSubdivision = asyncHandler(async (req, res) => {
     applicant: approvedBy,
     initiatedAt: new Date().toISOString(),
     completedAt: new Date().toISOString(),
-    remarks: `Cadastral split sanctioned. Child ULPINs ${parcel.subdivisionData.subdivisions[0]?.subUlpin} & ${parcel.subdivisionData.subdivisions[1]?.subUlpin} activated on Land Stack Base Cadastral Layer.`,
+    remarks: `Cadastral split sanctioned. Project child identifiers ${parcel.subdivisionData.subdivisions[0]?.childIdentifier || "not recorded"} & ${parcel.subdivisionData.subdivisions[1]?.childIdentifier || "not recorded"} activated on the cadastral layer.`,
     txHash: generateRandomHash()
   };
 
@@ -530,12 +624,7 @@ export const createBankLien = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Parcel not found" });
   }
 
-  if (parcel.disputeRecord?.transactionLock) {
-    return res.status(403).json({
-      error: "LIEN_RESTRICTED",
-      message: "Cannot create mortgage lien on a parcel under active court injunction."
-    });
-  }
+  if (await rejectIfStatutorilyRestricted(parcel, res, "Mortgage lien creation")) return;
 
   parcel.essentialLayers = parcel.essentialLayers || {};
   parcel.essentialLayers.encumbrance = {

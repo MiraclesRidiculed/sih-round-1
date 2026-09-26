@@ -3,231 +3,185 @@
 ## 1. Project Overview & SIH26014 Context
 **Land Stack** is an integrated GIS-based Digital Public Infrastructure (DPI) for Land Governance developed for the **Department of Land Resources (DoLR), Ministry of Rural Development, Government of India**, directly addressing **Smart India Hackathon problem statement SIH26014 ("Integrated GIS-Based Digital Public Infrastructure for Land Governance")**.
 
-### Core Purpose
-In India, land is a State subject (*Seventh Schedule, List II, Entry 18*), leading to fragmented, siloed state systems (e.g., *Bhoomi* and *Kaveri* in Karnataka, *Tamil Nilam* and *TNREGINET* in Tamil Nadu, *UPR* in Chandigarh). Furthermore, >66% of civil litigations involve land boundary and ownership disputes. 
+### Core Purpose & Constitutional Context
+In India, land is constitutionally a State subject (*Seventh Schedule, List II, Entry 18*), leading to fragmented, siloed state systems (e.g., *Bhoomi* and *Kaveri* in Karnataka, *Tamil Nilam* and *TNREGINET* in Tamil Nadu, *UPR* in Chandigarh, *Dharani* in Telangana). Furthermore, >66% of civil litigations involve land boundary and ownership disputes. 
 
-Land Stack establishes a federated, interoperable national Digital Public Infrastructure connecting:
+Land Stack establishes a federated, interoperable national Digital Public Infrastructure (analogous to UPI or ABDM) that respects state autonomy while connecting:
 1. **Cadastral Maps & 14-Digit Bhu-Aadhaar (ULPIN)**
 2. **Record of Rights (RoR / Patta / Chitta / RTC)**
 3. **Deed Registration & Sub-Registrar Offices (SRO)**
 4. **Revenue Court Case Management System (RCCMS)**
 5. **Town Planning & Master Plan Zoning**
-6. **Core Banking Liens & Encumbrances**
-7. **AI Satellite Change & Encroachment Detection**
+6. **Core Banking Liens & Encumbrances (Finacle / CERSAI)**
+7. **Remote Sensing Satellite Change Detection**
 8. **Tamper-Evident Sepolia Blockchain Audit Layer**
 
 ---
 
-## 2. Technology Stack
+## 2. Current Development State & Active Git Branch
+
+* **Target Active Branch:** `national-dpi-security-refactor`
+* **STRICT RULE:** NEVER commit or push directly to `main` or `GIS-edit-1`. Work exclusively on `national-dpi-security-refactor`.
+* **Current Working Tree:** All changes for Steps 1 through 4 are staged/active on `national-dpi-security-refactor`.
+* **Prerequisites:** MongoDB running locally on port 27017 (`mongodb://127.0.0.1:27017/karnataka_landchain`), Node.js v22+.
+
+---
+
+## 3. Implementation Progress Checklist
+
+### ✅ STEP 1: Repository Audit & Baseline Verification (COMPLETED)
+- Verified npm monorepo workspaces (`client`, `server`, `contracts`).
+- Verified baseline build (`npm run build` succeeds with 0 errors).
+- Clean branch checkout to `national-dpi-security-refactor`.
+
+### ✅ STEP 2: Backend Authentication Foundation (COMPLETED)
+- Installed dependencies in server: `bcryptjs` (^3.0.3) and `jsonwebtoken` (^9.0.3).
+- Added `JWT_SECRET` and `JWT_EXPIRES_IN=7d` to `server/.env` and `server/src/config/env.js`.
+- Upgraded `server/src/models/User.js`:
+  - `pre("save")` hook for automated bcrypt hashing with 10 salt rounds.
+  - Double-hashing prevention (checks for `$2a$` or `$2b$` prefix).
+  - `comparePassword(candidatePassword)` instance method.
+  - `toJSON()` method to strip `passwordHash` from API outputs.
+- Created `server/src/utils/jwt.js`: `generateToken(user)` and `verifyToken(token)`.
+- Overhauled `server/src/middleware/authMiddleware.js`:
+  - `authenticateToken`: verifies a signed JWT from the HttpOnly session cookie (or an explicit Bearer token), requires an active database session, and returns HTTP 401 on missing/invalid/expired/revoked tokens.
+  - `requireRole(allowedRoles)`: strictly verifies RBAC permissions; returns HTTP 401 if unauthenticated and HTTP 403 (`ACCESS_RESTRICTED`) if role lacks required privilege.
+- Upgraded `server/src/controllers/authController.js` & `server/src/routes/authRoutes.js`:
+  - `POST /api/auth/login`: verifies password against MongoDB bcrypt hash, updates `lastLoginAt`, and sets Secure/SameSite HttpOnly session and CSRF cookies; the JWT is not returned to JavaScript.
+  - `POST /api/auth/logout`: revokes the active database session and clears both cookies.
+  - `GET /api/auth/me`: protected via `authenticateToken`.
+  - `POST /api/auth/switch-role`: replaces the HttpOnly session only for non-production demo evaluation; disabled in production.
+- Automated Test Suite: `node server/src/scripts/testAuth.js` (9/9 tests passed).
+
+### ✅ STEP 3: Secure Demo Personas & Idempotent Seeding (COMPLETED)
+- Standardized all 7 official institutional personas in `server/src/data/demoParcels.js` and `authMiddleware.js`:
+  1. `admin` — Dr. Rameshwar Sharma, IAS (DoLR National Platform Administrator)
+  2. `revenue_officer` — K. Annadurai, DRO (Tehsildar / Village Administrative Officer)
+  3. `surveyor` — P. Vignesh, LIS (Directorate of Survey & Land Records)
+  4. `sro` — Meenakshi Sundaram (Sub-Registrar / Registration & Stamps Department)
+  5. `court` — Hon. Justice B. Patil (Revenue Court / RCCMS Judicial Officer)
+  6. `bank` — Vikram Malhotra (Financial Institution / Core Banking)
+  7. `citizen` — Ananya Narayanan (Public Landholder / Applicant)
+- Demo persona passwords are deterministically derived per account from `DEMO_SEED_PASSWORD`; configure at least 32 bytes of private secret material before seeding. Demo accounts are not seeded in production.
+- Upgraded `server/src/scripts/seedDemoData.js` to be **100% idempotent and non-destructive** using Mongoose upserts (`findOneAndUpdate` with `{ upsert: true }`). Running the seed script multiple times does not duplicate records or drop unrelated collections.
+- Automated Test Suite: `node server/src/scripts/verifyPersonas.js` verified all 7 users, bcrypt hashes, and HTTP login.
+
+### ✅ STEP 4: Frontend Login Portal (COMPLETED)
+- Created `client/src/pages/LoginPage.jsx`:
+  - Calm, formal Government of India / JanParichay DPI styling.
+  - Deep navy (`#0B2545`), ash slate (`#334155`), white/slate cards, restrained amber/saffron accents.
+  - Zero neon, zero glowing borders, zero gaming terminology.
+  - Full username and password inputs with toggle.
+  - **Institutional Account Selector:** Click a persona to pre-fill its email; enter the individually provisioned password.
+- Updated `client/src/App.jsx`: registered `/login` route.
+- Updated `client/src/api/client.js`: sends cookies with API requests and attaches a double-submit CSRF token to state-changing requests.
+- Updated `client/src/context/AuthContext.jsx`: restores the server-validated cookie session, clears legacy local JWTs, and keeps only an offline profile cache for offline-only use.
+- Updated `client/src/layouts/AppLayout.jsx`: navigation displays active official session with role badge and `Sign Out` button, or `Official Login` when unauthenticated.
+- Verified in browser via automated subagent (`login_flow_test`): tested invalid password (error banner), demo persona selection, real login, redirect to `/`, header session status, and logout.
+- Verified build: `npm run build` succeeds with 0 errors (1,718 modules).
+
+---
+
+## 4. Remaining Steps & Immediate Next Step
+
+When resuming, execute the remaining steps in the following order:
+
+### 🔜 STEP 5: Quiet, Authoritative UI Overhaul & De-cluttering
+- **Goal:** Eliminate visual noise, sensationalized hype terms, and invasive screen distractions.
+- **Actions:**
+  1. Retire the floating bottom-right dock (`client/src/components/LiveDemoDock.jsx`).
+  2. Move simulation and inter-agency triggers into a dedicated, authenticated **Department Operations Console** (`/operations`) accessible via the navigation header for authorized officials (`admin`, `revenue_officer`, `sro`, etc.).
+  3. Purge sensationalized terms across all components:
+     - Replace *"Radar Sweep"* / *"Orbital AI"* $\rightarrow$ *"Remote Sensing Change Detection"*.
+     - Replace *"Hard-Blocked"* / *"Instant Freeze"* $\rightarrow$ *"Statutory Transfer Restriction (Sec 52 Transfer of Property Act)"*.
+     - Replace *"Quantum Ledger"* $\rightarrow$ *"Tamper-Evident Cryptographic Audit Trail"*.
+  4. Standardize cards and tables on calm slate/navy borders and remove pulsating animations.
+  5. Test and verify build.
+
+### 🔜 STEP 6: National Federated DPI Architecture & Canonical Schema Harmonizer
+- **Goal:** Formalize the multi-state federation model honoring State subject rights (*Entry 18, List II*).
+- **Actions:**
+  1. Expand the Canonical Schema Harmonizer (`client/src/components/SchemaHarmonizerModal.jsx` and backend adapters) to demonstrate seamless translation between state systems (*Bhoomi*, *Tamil Nilam*, *UPR*, *Dharani*) into the National **ISO 19152 LADM** standard.
+  2. Implement an inter-state encumbrance lookup showing how a national bank or central agency queries clear title across state borders without displacing state databases.
+
+### 🔜 STEP 7: Deep Statutory Features
+- **Goal:** Complete deep functional workflows that differentiate Land Stack.
+- **Actions:**
+  1. **Full RCCMS Dispute Lifecycle:** Support case filing $\rightarrow$ notice $\rightarrow$ interim injunction (stay order) $\rightarrow$ final decree/vacation, with automatic Section 52 statutory locks on SRO deed registration.
+  2. **Geometric Cadastral Subdivision (Form 11E):** True polygon coordinate midpoint splitting algorithm calculating valid child GeoJSON polygons, recomputed acreage, and issuing deterministic child ULPINs.
+  3. **PWA Offline Field Survey Mode:** Add `manifest.json` and service worker caching in `client/public/` with a password-unlocked, AES-GCM-encrypted IndexedDB survey sync queue.
+
+### 🔜 STEP 8: Verification & Branch Commit
+- Run full suite tests (`testAuth.js`, `verifyPersonas.js`, `npm run build`).
+- Commit all changes:
+  ```bash
+  git add -A
+  git commit -m "feat(dpi): implement federated national architecture, jwt rbac security, and quiet govtech ui"
+  git push -u origin national-dpi-security-refactor
+  ```
+- **STRICT:** Do not push to `main` or `GIS-edit-1`.
+
+---
+
+## 5. Technology Stack Summary
 
 ### Frontend (`client/`)
-* **Framework:** React 18 (`react`, `react-dom`) + Vite 5 (`@vitejs/plugin-react`)
-* **Routing:** `react-router-dom` v6
-* **Styling:** Tailwind CSS 3.4 + PostCSS + Autoprefixer (Glassmorphic Government DPI design system)
-* **GIS Mapping:** `leaflet` 1.9.4 + `react-leaflet` 4.2.1 (supports Esri World Imagery Satellite basemap, cadastral polygon overlays, CORS vertex markers, utility lines)
-* **Icons:** `lucide-react`
-* **HTTP Client:** `axios`
+* **Framework:** React 18.3.1 + Vite 8.3.1
+* **Routing:** `react-router-dom` 7.18.4
+* **Styling:** Tailwind CSS 3.4.10 (Authoritative Government DPI theme: `#0B2545`, `#334155`, `#F8F6EF`)
+* **GIS Mapping:** `leaflet` 1.9.4 + `react-leaflet` 4.2.1
+* **Icons:** `lucide-react` 0.439.0
+* **HTTP Client:** `axios` 1.7.4 with HttpOnly session cookies and double-submit CSRF protection
 * **QR Codes:** `react-qr-code`, `@yudiel/react-qr-scanner`
-* **Real-time Streaming:** Native browser `EventSource` connected to Node.js Server-Sent Events (`/api/stream`)
+* **Real-time Streaming:** Authenticated fetch stream on `/api/stream`
 
 ### Backend (`server/`)
-* **Runtime:** Node.js (ES Modules, `"type": "module"`)
-* **Framework:** Express 4.19
-* **Database:** MongoDB 7+ via Mongoose 8.6
-* **Real-time Event Gateway:** In-memory Node.js `EventEmitter` broadcasting via native Server-Sent Events (SSE) on `GET /api/stream`
+* **Runtime:** Node.js v22 (ES Modules, `"type": "module"`)
+* **Framework:** Express 4.19.2
+* **Database:** MongoDB 7+ via Mongoose 8.6.2
+* **Authentication:** `bcryptjs` 3.0.3, `jsonwebtoken` 9.0.3, revocable MongoDB sessions, login throttling
+* **Real-time Event Gateway:** In-memory Node.js `EventEmitter` broadcasting via native SSE (`GET /api/stream`)
 * **Logging & CORS:** `morgan`, `cors`
-* **Blockchain/Web3:** `ethers` v6 interacting with Ethereum Sepolia smart contracts or demo-mode deterministic hashing
-
-### Smart Contracts (`contracts/`)
-* **Environment:** Hardhat
-* **Language:** Solidity `^0.8.24` (`LandRecordAudit.sol`)
-* **Network:** Ethereum Sepolia testnet
+* **Web3/Audit:** `ethers` 6.13.2
 
 ---
 
-## 3. Repository Structure
+## 6. Official Institutional Personas & Credentials
 
-```
-sih/
-├── AGENTS.md                                # Persistent architectural context & agent rules
-├── README.md                                # Public documentation & pilot state overview
-├── docker-compose.yml                       # Local MongoDB service container configuration
-├── package.json                             # Monorepo root with npm workspaces ("client", "server", "contracts")
-├── client/                                  # React + Vite frontend application
-│   ├── index.html                           # Single page HTML entry
-│   ├── vite.config.js                       # Vite configuration with proxy for /api -> :4000
-│   └── src/
-│       ├── App.jsx                          # Main router setup & lazy routes
-│       ├── main.jsx                         # React DOM mount point
-│       ├── index.css                        # Tailwind directives & glass-panel styling
-│       ├── api/
-│       │   └── client.js                    # Axios client instance & REST API call wrappers
-│       ├── context/
-│       │   ├── AuthContext.jsx              # Role-based auth provider & demo account switcher
-│       │   ├── LiveEventContext.jsx         # SSE (/api/stream) client hook & toast dispatch
-│       │   └── LanguageContext.jsx          # Multilingual dictionary (EN, HI, KN, TA)
-│       ├── layouts/
-│       │   └── AppLayout.jsx                # Government banner, navigation, live telemetry pill, language/role toggles
-│       ├── pages/
-│       │   ├── HomePage.jsx                 # Pilot state explorer, search engine, metrics, parcel listing
-│       │   ├── ParcelDetailPage.jsx         # 3-tier layer viewer, tabs (Overview, Legal/RCCMS, AI, 3D, Audit)
-│       │   ├── PublicVerifyPage.jsx         # Public QR verification landing page
-│       │   ├── QrScanPage.jsx               # In-browser QR code scanner & hash verification
-│       │   └── StandardTechnicalDocPage.jsx # Formal DoLR 2026 API specification & schemas
-│       ├── components/
-│       │   ├── ParcelMap.jsx                # Leaflet GIS canvas (3 layers, CORS pins, AI radar, subdivision tool)
-│       │   ├── ParcelList.jsx               # Responsive multi-state parcel cards
-│       │   ├── PropertyCardModal.jsx        # Printable Bhu-Aadhaar official certificate
-│       │   ├── ServiceRequestModal.jsx      # Citizen cross-departmental workflow modal
-│       │   ├── LiveDemoDock.jsx             # Collapsible floating jury demonstration dock (1-click simulations)
-│       │   ├── BiTemporalSatelliteModal.jsx # Before (2024) vs After (2026) satellite comparison slider
-│       │   ├── CadastralSubdivisionModal.jsx# Surveyor 11E subdivision sketch & child ULPIN generator
-│       │   ├── SchemaHarmonizerModal.jsx    # Multi-state to National canonical OGC/JSON-LD viewer
-│       │   ├── ThreeDCadastreModal.jsx      # 3D vertical strata preview for urban multi-storey units
-│       │   ├── StatusPill.jsx               # Color-coded verification & court-stay status badges
-│       │   ├── DocumentPanel.jsx            # Document hashes & IPFS reference viewer
-│       │   ├── OwnershipTimeline.jsx        # Historical mutation & deed chronological chain
-│       │   └── VerificationPanel.jsx        # Consistency cross-check report against state databases
-│       └── utils/
-│           ├── format.js                    # Currency, acreage, date, and hash formatters
-│           └── i18n.js                      # Language translations (English, Hindi, Kannada, Tamil)
-├── server/                                  # Express REST API & SSE Real-time Gateway
-│   ├── .env                                 # Server environment configuration
-│   └── src/
-│       ├── index.js                         # Server entry point & DB connection
-│       ├── config/
-│       │   ├── db.js                        # Mongoose MongoDB connection
-│       │   └── env.js                       # Environment variable parser
-│       ├── events/
-│       │   └── eventBus.js                  # Node.js EventEmitter for SSE real-time broadcast
-│       ├── middleware/
-│       │   ├── authMiddleware.js            # Simulated token/role-based route guard
-│       │   └── errorHandler.js              # Centralized error handler
-│       ├── models/
-│       │   ├── Parcel.js                    # Core parcel schema with 3 spatial layers, RCCMS, AI, 3D
-│       │   ├── User.js                      # User schema with 6 specialized government & citizen roles
-│       │   ├── DocumentRecord.js            # Document metadata & SHA-256 cryptographic hashes
-│       │   ├── OwnershipEvent.js            # Mutation and deed events
-│       │   ├── DisputeRecord.js             # Revenue court case & stay order schema
-│       │   └── VerificationScan.js          # QR code scan history
-│       ├── routes/
-│       │   ├── authRoutes.js                # Login, demo switch, and current session
-│       │   ├── streamRoutes.js              # GET /api/stream (SSE) & POST /api/stream/simulate
-│       │   ├── parcelRoutes.js              # Parcel listing, detail, subdivision, and workflow actions
-│       │   ├── courtRoutes.js               # RCCMS stay order & dispute management
-│       │   ├── dashboardRoutes.js           # Consolidated platform statistics & pilot summaries
-│       │   └── verificationRoutes.js        # Hash verification & Sepolia blockchain anchoring
-│       ├── controllers/
-│       │   ├── authController.js            # Authentication logic & session generation
-│       │   ├── streamController.js          # SSE connection manager & broadcast helpers
-│       │   ├── parcelController.js          # Parcel CRUD, boundary subdivision, workflows
-│       │   ├── courtController.js           # RCCMS injunction issue/revoke & anti-fraud locks
-│       │   └── dashboardController.js       # KPI metrics aggregation
-│       └── data/
-│           └── demoParcels.js               # Multi-state seed data (TN, CHD, KAR)
-└── contracts/                               # Sepolia Smart Contract & Deployment
-    ├── contracts/LandRecordAudit.sol        # Solidity immutable audit trail contract
-    └── hardhat.config.js                   # Hardhat network & compiler configuration
-```
+| Role ID | Persona Name | Official Designation | Department | Email |
+|---|---|---|---|---|---|
+| `admin` | Dr. Rameshwar Sharma, IAS | DoLR National Platform Administrator | Department of Land Resources (DoLR), MoRD | `admin@landstack.gov.in` |
+| `revenue_officer` | K. Annadurai, DRO | Tehsildar / Village Administrative Officer | Revenue & Disaster Management Department | `tehsildar@tamilnilam.tn.gov.in` |
+| `surveyor` | P. Vignesh, LIS | Directorate of Survey & Land Records | Survey Settlement & Land Records (SSLR) | `surveyor@surveyofindia.gov.in` |
+| `sro` | Meenakshi Sundaram | Sub-Registrar / Registration & Stamps Department | Registration & Stamps Department | `sro.sriperumbudur@tnreginet.gov.in` |
+| `court` | Hon. Justice B. Patil | Revenue Court / RCCMS Judicial Officer | Revenue Court Case Management System (RCCMS) | `rccms.bench@judiciary.gov.in` |
+| `bank` | Vikram Malhotra | Financial Institution / Core Banking | Indian Overseas Bank / Core Banking (Finacle) | `mortgages@iob.bank.in` |
+| `citizen` | Ananya Narayanan | Public Landholder / Applicant | Public User | `ananya.citizen@gmail.com` |
 
 ---
 
-## 4. Existing Features to Preserve
+## 7. How to Run & Verify
 
-1. **Multi-State Pilot Parity:**
-   * **Tamil Nadu Pilot:** Sriperumbudur (`TN-KPM-0001` • ULPIN: `33030400100482`, Patta/Chitta, TNREGINET deed, CMDA Master Plan 2026, active IOB bank mortgage).
-   * **Chandigarh UT Pilot:** Sector 17-C CBD (`CHD-UT-0001` • ULPIN: `04010100200814`, Freehold commercial UPR, Le Corbusier heritage zone).
-   * **Karnataka State Integration:** Bengaluru Urban (`KAR-BLRU-0001`), Mysuru (`KAR-MYS-0002`), Belagavi (`KAR-BGM-0003` with active boundary dispute and AC court stay).
-2. **The 3 Spatial Layers Standard:**
-   * **Layer 1 (Base Cadastral):** Georeferenced boundaries, 14-digit ULPIN, CORS GNSS sub-meter coordinates, vertex coordinates in `EPSG:4326`.
-   * **Layer 2 (Essential Governance & RRR):** RoR (Patta/RTC/UPR), SRO deed references, Master Plan zoning polygons, sanctioned building permissions, active bank mortgage liens.
-   * **Layer 3 (Use-Case & Extended Services):** Municipal property taxation (PID), underground utility conduits (water feeders, 11kV grid), circle rates / guidance values, environmental restrictions (30m lake buffer lines).
-3. **Official DPI Bhu-Aadhaar Property Cards:**
-   * Printable, standard-compliant certificate containing administrative hierarchy, cadastral identity, RRR matrix, boundary vertex coordinates, verification QR code, and Sepolia transaction hash.
-4. **Standard Technical Document (STD) Page (`/std`):**
-   * DoLR architecture specifications, open API standards, canonical data dictionaries, and cryptographic audit proofs.
-5. **Sepolia Cryptographic Audit Layer:**
-   * SHA-256 document hashing and off-chain storage references with tamper-evident blockchain transaction IDs.
-
----
-
-## 5. Role-Based Access Control (RBAC) Architecture
-
-The application enforces a dual-level (frontend UI + backend API middleware) authorization system supporting 6 specialized government and institutional personas:
-
-| Role ID | Persona Name | Key Permissions | Restrictions |
-|---|---|---|---|
-| `admin` | **National Administrator / DoLR Officer** | Full platform visibility, inspect audit trails, manage simulation dock, view all state gateways. | None |
-| `revenue_officer` | **Revenue Officer (Tehsildar / VAO)** | Approve e-Mutation requests, review 11E survey sketches, inspect AI satellite anomalies, scrutinize RoR. | Cannot issue court stay orders or modify judicial decrees. |
-| `surveyor` | **Revenue Surveyor** | Access survey canvas, capture simulated CORS GNSS coordinates, draw subdivision lines, generate 11E sketches. | **Cannot self-approve** their own survey sketch. Cannot override transaction locks. |
-| `sro` | **Sub-Registrar (SRO)** | Initiate deed registrations, conduct pre-registration encumbrance/court checks, generate index-II extracts. | **Hard-blocked** from registering deeds on parcels under active court stays, dispute injunctions, or bank liens. |
-| `bank` | **Bank / Financial Institution (Finacle)** | Create equitable mortgage charges, enter Column 11 hypothecation charges, inspect clear titles. | Cannot alter cadastral geometry, approve mutations, or lift court injunctions. |
-| `court` | **Revenue Court / RCCMS Officer** | Issue interim stay orders, manage litigation metadata, place/revoke legal transaction locks. | Cannot alter cadastral boundaries or ownership shares directly. |
-| `citizen` | **Citizen / Public User** | Search parcels across India, inspect 3-tier layers, download Bhu-Aadhaar Property Cards, submit service requests. | Read-only with workflow initiation privileges. |
-
-### Backend Route Guard Middleware (`authMiddleware.js`)
-Sensitive mutation endpoints inspect the `x-user-role` header (or simulated session token) and validate role permissions:
-* `requireRole(["revenue_officer", "admin"])` for approving mutations and survey sketches.
-* `requireRole(["surveyor", "admin"])` for submitting subdivision proposals.
-* `requireRole(["court", "admin"])` for issuing/revoking injunctions and legal transaction locks.
-* `requireRole(["bank", "admin"])` for adding/releasing mortgage liens.
-* `requireRole(["sro", "admin"])` for deed registration (with mandatory check against active injunctions).
-
----
-
-## 6. Real-Time Event Gateway Architecture (`/api/stream`)
-
-* **Technology:** Native Node.js `EventEmitter` combined with HTTP Server-Sent Events (`text/event-stream`). No bulky Redis/Kafka brokers required.
-* **Endpoint:** `GET /api/stream`
-* **Heartbeat:** Pings every 25 seconds to keep long-lived HTTP connections active.
-* **Supported Events:**
-  - `DEED_REGISTERED`: SRO registers a deed; automatically alerts Revenue for mutation.
-  - `MUTATION_INITIATED`: Revenue department opens a mutation task.
-  - `MUTATION_COMPLETED`: Mutation approved; updates RoR and owner list live on all screens.
-  - `LIEN_CREATED`: Bank registers an equitable mortgage charge.
-  - `LIEN_RELEASED`: Bank releases mortgage lien.
-  - `COURT_INJUNCTION_ISSUED`: Injunction issued; parcel turns red and locks immediately.
-  - `COURT_INJUNCTION_REMOVED`: Court lifts stay order; unlocks parcel.
-  - `GNSS_POINT_RECEIVED`: CORS rover streams coordinate telemetry to the map.
-  - `SURVEY_COMPLETED`: Field survey finished.
-  - `SUBDIVISION_CREATED`: Surveyor submits an 11E demarcation split.
-  - `AI_CHANGE_DETECTED`: Remote sensing satellite pass flags unauthorized construction.
-  - `TRANSACTION_BLOCKED`: Anti-fraud engine prevents illegal sale under Section 52 Transfer of Property Act.
-
----
-
-## 7. Development & Agent Safety Rules
-
-1. **Inspect Before Changing:** Always view or grep existing code before editing. Do not guess file structure or exports.
-2. **Never Break Existing Features:** Bhu-Aadhaar Property Cards, Leaflet map overlays, Sepolia verification, and multi-state seed parcels must remain functional at all times.
-3. **Keep It Locally Runnable & Self-Contained:** Avoid introducing Redis, external message queues, paid proprietary APIs, or heavy 3D game engines.
-4. **Progressive Disclosure UI:** Do not clutter the main landing page with every single control. Use clean tabs (`Overview`, `Legal / RCCMS`, `AI Satellite Radar`, `3D Strata`, `Audit Trail`), modals, and a collapsible floating demonstration dock.
-5. **Honest Simulation Labeling:** All mock services (CORS GNSS rover, AI change detection, bank Finacle gateway, Sepolia testnet hash) must be clearly labeled as demonstration public infrastructure adapters.
-6. **Double-Layer Authorization:** Implement checks both in the React UI (disabled buttons / role badges) and in Express controllers (HTTP 401/403 with descriptive error payloads).
-
----
-
-## 8. How to Run the Project
-
-### Prerequisites
-* Node.js v18+ (tested on v22.19.0)
-* MongoDB running locally on port 27017 (`mongodb://127.0.0.1:27017/karnataka_landchain`)
-
-### Commands
 ```bash
-# 1. Install all dependencies across monorepo workspaces
+# 1. Install workspace dependencies
 npm install
 
-# 2. Seed multi-state demo parcels & initial users
+# 2. Run idempotent database seed
 npm run seed
 
-# 3. Start both backend (:4000) and frontend (:5173) concurrently
+# 3. Run backend authentication & persona test suites
+node server/src/scripts/testAuth.js
+node server/src/scripts/verifyPersonas.js
+
+# 4. Start backend (:4000) and frontend (:5173) concurrently
 npm run dev
 
-# 4. Optional: Run tests / build client bundle
+# 5. Production client build check
 npm run build
 ```
+
 * **Frontend Web Application:** `http://localhost:5173`
+* **Official Login Portal:** `http://localhost:5173/login`
 * **Backend API Gateway:** `http://localhost:4000/api`
 * **Real-time SSE Stream:** `http://localhost:4000/api/stream`
 * **Architecture Standard (STD):** `http://localhost:5173/std`

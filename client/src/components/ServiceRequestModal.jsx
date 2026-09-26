@@ -70,7 +70,7 @@ const ServiceRequestModal = ({ parcel, onClose, onSubmitted }) => {
 
         {success ? (
           <div className="py-8 text-center space-y-3">
-            <CheckCircle2 size={48} className="mx-auto text-emerald-600 animate-bounce" />
+            <CheckCircle2 size={48} className="mx-auto text-emerald-600" />
             <h4 className="text-xl font-bold text-earth-900">Application Submitted!</h4>
             <p className="text-sm text-earth-600">
               Your service request has been logged and anchored to the Land Stack DPI audit trail.

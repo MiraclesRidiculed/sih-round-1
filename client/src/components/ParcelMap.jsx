@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { Circle, GeoJSON, MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
-import { AlertOctagon, Check, Eye, Gavel, Layers, Lock, MapPin, Radio, Satellite, ShieldAlert, Zap } from "lucide-react";
+import { AlertOctagon, Check, Eye, Gavel, Layers, LoaderCircle, Lock, MapPin, Radio, Satellite, Search, ShieldAlert, X, Zap } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { searchParcels } from "../api/client";
 import { useLiveEvents } from "../context/LiveEventContext";
+import { findExactParcelSearchMatch, normalizeParcelSearchTerm } from "../utils/parcelSearch";
+import { getParcelPlanningInfo } from "../utils/parcelInfo";
 
 // Fix default leaflet marker icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,7 +16,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
 });
 
-const FitToParcel = ({ geoJson }) => {
+const FitToParcel = ({ geoJson, fitKey, fitRequest }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -25,21 +29,37 @@ const FitToParcel = ({ geoJson }) => {
     } catch {
       // ignore
     }
-  }, [geoJson, map]);
+  }, [geoJson, fitKey, fitRequest, map]);
 
   return null;
 };
 
-const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
+const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest = 0, searchFocusRequest = 0, restrictedView = false, role }) => {
   const { lastEvent } = useLiveEvents();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const geoJson = propGeoJson || parcel?.geoJson;
+  const planningInfo = getParcelPlanningInfo(parcel?.unifiedRecord, { ...parcel, geoJson });
+  const encumbranceInfo = parcel?.unifiedRecord?.modules?.encumbrance?.data?.record ||
+    parcel?.essentialLayers?.encumbrance || {};
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchStatus, setSearchStatus] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef(null);
+  const isSearchResult = searchParams.get("mapSearch") === "1";
 
   // Active layers state (The 3 Layers of Land Stack + AI)
   const [showBaseLayer, setShowBaseLayer] = useState(true);
   const [showEssentialLayer, setShowEssentialLayer] = useState(true);
   const [showUseCaseLayer, setShowUseCaseLayer] = useState(true);
-  const [showAiRadar, setShowAiRadar] = useState(false);
+  const [showChangeDetection, setShowChangeDetection] = useState(false);
+  const [showPlanningLayer, setShowPlanningLayer] = useState(true);
   const [basemapType, setBasemapType] = useState("satellite"); // "satellite" or "topo"
+
+  useEffect(() => {
+    if (searchFocusRequest > 0) searchInputRef.current?.focus();
+  }, [searchFocusRequest]);
 
   // Live CORS GNSS rover state
   const [liveRoverPoint, setLiveRoverPoint] = useState(null);
@@ -62,7 +82,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
   const leafletCoords = coords.map((c) => [c[1], c[0]]);
 
   // Court stay / transaction lock status
-  const isCourtLocked = Boolean(
+  const isCourtLocked = !restrictedView && Boolean(
     parcel?.disputeRecord?.transactionLock ||
     parcel?.essentialLayers?.ror?.revenueCourtDispute ||
     parcel?.verificationHint?.status === "mismatch"
@@ -79,11 +99,65 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
     [coords[2][1] - 0.0004, coords[2][0] + 0.0006]
   ] : [];
 
-  // Demarcation Split Line from Subdivision Sketch
-  const demarcationLine = coords.length >= 4 ? [
-    [(coords[0][1] + coords[3][1]) / 2, (coords[0][0] + coords[3][0]) / 2],
-    [(coords[1][1] + coords[2][1]) / 2, (coords[1][0] + coords[2][0]) / 2]
-  ] : [];
+  const subdivision = parcel?.subdivisionData;
+  const splitLine = subdivision?.activeSketch?.splitLine;
+  const splitLineCoordinates = splitLine?.type === "MultiLineString"
+    ? splitLine.coordinates
+    : splitLine?.type === "LineString"
+      ? [splitLine.coordinates]
+      : subdivision?.activeSketch?.demarcationLineCoords
+        ? [subdivision.activeSketch.demarcationLineCoords]
+        : [];
+  const demarcationLines = splitLineCoordinates.map((line) =>
+    line.map(([longitude, latitude]) => [latitude, longitude])
+  );
+  const subdivisionChildren = subdivision?.subdivisions || [];
+  const canViewSubdivision = role === "admin" || role === "surveyor";
+  const handleParcelSearch = async (event) => {
+    event.preventDefault();
+    const query = normalizeParcelSearchTerm(searchTerm);
+    if (!query) {
+      setSearchStatus({
+        type: "error",
+        message: "Enter a ULPIN, survey number, or parcel identifier."
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchStatus(null);
+    try {
+      const response = await searchParcels({ search: query });
+      const match = findExactParcelSearchMatch(response.items, query);
+      if (!match) {
+        setSearchStatus({ type: "error", message: "No land parcel found for the entered ULPIN." });
+        return;
+      }
+
+      const targetPath = `/parcels/${encodeURIComponent(match.parcelId)}?mapSearch=1`;
+      setSearchStatus({ type: "success", message: `Parcel ${match.parcelId} located. Boundary highlighted.` });
+      navigate(targetPath);
+    } catch (error) {
+      setSearchStatus({
+        type: "error",
+        message: error.response?.data?.message || "Parcel search is temporarily unavailable. Please try again."
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearParcelSearch = () => {
+    setSearchTerm("");
+    setSearchStatus(null);
+    if (isSearchResult) {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete("mapSearch");
+        return next;
+      }, { replace: true });
+    }
+  };
 
   // Synthesize AI encroachment anomaly polygon if anomaly detected
   const hasAiAnomaly = Boolean(parcel?.aiGeospatial?.satelliteChangeDetection?.anomalyDetected);
@@ -97,8 +171,59 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/70 shadow-panel">
       {/* Top Floating Controls Bar */}
-      <div className="absolute left-3 right-3 top-3 z-[1000] flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/70 bg-white/90 p-2.5 shadow-lg backdrop-blur-md">
+      <div className="absolute left-3 right-3 top-3 z-[1000] flex flex-col gap-2 rounded-2xl border border-white/70 bg-white/95 p-2.5 shadow-lg backdrop-blur-md">
+        <form onSubmit={handleParcelSearch} role="search" className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm focus-within:border-[#0B2545] focus-within:ring-2 focus-within:ring-[#0B2545]/15">
+          <Search size={18} className="shrink-0 text-slate-500" aria-hidden="true" />
+          <label htmlFor="parcel-map-search" className="sr-only">
+            Search by ULPIN, survey number, or parcel identifier
+          </label>
+          <input
+            ref={searchInputRef}
+            id="parcel-map-search"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              if (searchStatus) setSearchStatus(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") clearParcelSearch();
+            }}
+            placeholder="Search ULPIN, survey number, or parcel ID"
+            autoComplete="off"
+            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
+          />
+          {(searchTerm || searchStatus || isSearchResult) && (
+            <button
+              type="button"
+              onClick={clearParcelSearch}
+              className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Clear parcel search"
+              title="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#0B2545] px-3 py-2 text-xs font-semibold text-white hover:bg-[#16385f] disabled:cursor-wait disabled:opacity-70"
+          >
+            {isSearching ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : <Search size={15} aria-hidden="true" />}
+            <span>{isSearching ? "Searching" : "Search"}</span>
+          </button>
+        </form>
+        {searchStatus && (
+          <p
+            role={searchStatus.type === "error" ? "alert" : "status"}
+            aria-live="polite"
+            className={`px-1 text-xs font-medium ${searchStatus.type === "error" ? "text-red-800" : "text-emerald-800"}`}
+          >
+            {searchStatus.message}
+          </p>
+        )}
         {/* Basemap Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1 rounded-xl bg-earth-100/70 p-1 text-xs font-medium text-earth-800">
           <button
             type="button"
@@ -122,7 +247,8 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
           </button>
         </div>
 
-        {/* 3 Spatial Layers Toggles */}
+        {!restrictedView && (
+        /* 3 Spatial Layers Toggles */
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
           <button
             type="button"
@@ -135,7 +261,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
                 : "bg-gray-100 text-gray-500 hover:bg-gray-200"
             }`}
           >
-            <span className={`h-2 w-2 rounded-full ${isCourtLocked ? "bg-red-600 animate-pulse" : "bg-amber-600"}`} />
+            <span className={`h-2 w-2 rounded-full ${isCourtLocked ? "bg-red-600" : "bg-amber-600"}`} />
             Layer 1: Base Cadastral
             {showBaseLayer && <Check size={12} className={isCourtLocked ? "text-red-700" : "text-amber-700"} />}
           </button>
@@ -170,16 +296,34 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
 
           <button
             type="button"
-            onClick={() => setShowAiRadar(!showAiRadar)}
+            onClick={() => setShowChangeDetection(!showChangeDetection)}
             className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 transition ${
-              showAiRadar
-                ? "border border-rose-500/40 bg-rose-50 text-rose-900 shadow-sm animate-pulse"
+              showChangeDetection
+                ? "border border-rose-300 bg-rose-50 text-rose-900 shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-rose-800"
             }`}
           >
-            <Zap size={12} className={showAiRadar ? "text-rose-600" : "text-gray-400"} />
-            AI Radar
+            <Zap size={12} className={showChangeDetection ? "text-rose-600" : "text-gray-400"} />
+            Change Detection
           </button>
+        </div>
+        )}
+        {planningInfo.zoningGeoJson && (
+          <button
+            type="button"
+            onClick={() => setShowPlanningLayer((visible) => !visible)}
+            aria-pressed={showPlanningLayer}
+            className={`flex items-center gap-1.5 self-start rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+              showPlanningLayer
+                ? "border border-blue-300 bg-blue-50 text-blue-900"
+                : "border border-slate-200 bg-white text-slate-600"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-blue-600" />
+            Planning designation
+            {showPlanningLayer && <Check size={12} />}
+          </button>
+        )}
         </div>
       </div>
 
@@ -218,13 +362,13 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
             >
               <Tooltip sticky>
                 <div className="text-xs font-semibold">
-                  {isCourtLocked && (
+                  {!restrictedView && isCourtLocked && (
                     <p className="text-red-700 font-extrabold flex items-center gap-1">
                       <Lock size={12} />
                       🚨 Court Stay Active: Section 52 Lis Pendens
                     </p>
                   )}
-                  <p className="text-amber-800 font-bold">Base Cadastral Parcel</p>
+                  <p className="text-amber-800 font-bold">Cadastral parcel</p>
                   <p>ULPIN: {parcel?.ulpin || "Unassigned"}</p>
                   <p>Survey: {parcel?.surveyNumber} / {parcel?.hissaNumber || ""}</p>
                   <p>Area: {parcel?.areaInAcres} Acres ({parcel?.baseLayer?.localAreaUnit || ""})</p>
@@ -250,7 +394,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
                     <p className="font-bold text-amber-800">Cadastral Vertex #{idx + 1}</p>
                     <p className="font-mono text-[11px]">Lat: {coord[0].toFixed(6)}</p>
                     <p className="font-mono text-[11px]">Lng: {coord[1].toFixed(6)}</p>
-                    <p className="text-gray-500">CORS Accuracy: ±5cm (WGS84)</p>
+                    {!restrictedView && <p className="text-gray-500">CORS Accuracy: ±5cm (WGS84)</p>}
                   </div>
                 </Popup>
               </Circle>
@@ -258,8 +402,61 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
           </>
         )}
 
+        {showPlanningLayer && planningInfo.zoningGeoJson && (
+          <GeoJSON
+            data={planningInfo.zoningGeoJson}
+            style={() => ({
+              color: planningInfo.zoningColor,
+              weight: 2,
+              fillColor: planningInfo.zoningColor,
+              fillOpacity: 0.16
+            })}
+          >
+            <Tooltip sticky>
+              <span className="text-xs font-semibold">
+                Recorded planning designation: {planningInfo.masterPlan.zoneCategory ||
+                  planningInfo.masterPlan.planningDesignation ||
+                  planningInfo.masterPlan.landUseDesignation}
+              </span>
+            </Tooltip>
+            <Popup>
+              <div className="max-w-xs space-y-1.5 p-1 text-xs">
+                <p className="font-semibold text-[#0B2545]">Planning record · local demonstration data</p>
+                {planningInfo.masterPlan.authority && <p><strong>Authority:</strong> {planningInfo.masterPlan.authority}</p>}
+                {planningInfo.masterPlan.zoneCategory && <p><strong>Zone:</strong> {planningInfo.masterPlan.zoneCategory}</p>}
+                {planningInfo.masterPlan.planningDesignation && <p><strong>Designation:</strong> {planningInfo.masterPlan.planningDesignation}</p>}
+                <p className="text-slate-600">The shaded feature follows the parcel geometry; no separate zoning boundary layer is configured.</p>
+              </div>
+            </Popup>
+          </GeoJSON>
+        )}
+
+        {canViewSubdivision && showBaseLayer && subdivisionChildren.map((child, index) => {
+          const childRings = child.geoJson?.geometry?.coordinates || [];
+          if (!childRings.length || childRings[0].length < 4) return null;
+          const childPositions = childRings.map((ring) =>
+            ring.map(([longitude, latitude]) => [latitude, longitude])
+          );
+          const childColor = index === 0 ? "#2563eb" : "#059669";
+          return (
+            <Polygon
+              key={child.childIdentifier || `subdivision-part-${index}`}
+              positions={childPositions}
+              pathOptions={{ color: childColor, weight: 2, fillColor: childColor, fillOpacity: 0.28 }}
+            >
+              <Tooltip sticky>
+                <div className="text-xs">
+                  <p className="font-semibold">Child parcel part {child.part}</p>
+                  <p>Project ID: {child.childIdentifier || "Not assigned"}</p>
+                  <p>Area: {child.areaInAcres} acres</p>
+                </div>
+              </Tooltip>
+            </Polygon>
+          );
+        })}
+
         {/* LAYER 2: ESSENTIAL GOVERNANCE & RRR */}
-        {showEssentialLayer && leafletCoords.length > 0 && (
+        {!restrictedView && showEssentialLayer && leafletCoords.length > 0 && (
           <Polygon
             positions={leafletCoords}
             pathOptions={{
@@ -273,16 +470,15 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
               <div className="max-w-xs space-y-1.5 p-1 text-xs">
                 <div className="flex items-center justify-between border-b pb-1 font-bold text-blue-900">
                   <span>Essential Governance (RRR)</span>
-                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
-                    {parcel?.essentialLayers?.masterPlanZoning?.zoneCategory || "Master Plan Layer"}
-                  </span>
+                  {planningInfo.masterPlan.zoneCategory && (
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
+                      {planningInfo.masterPlan.zoneCategory}
+                    </span>
+                  )}
                 </div>
-                <p><strong>Permissible FAR:</strong> {parcel?.essentialLayers?.masterPlanZoning?.permissibleFar || "2.0"}</p>
-                <p><strong>Building Permission:</strong> {parcel?.essentialLayers?.buildingPermissions?.status || "Sanctioned"}</p>
-                <p>
-                  <strong>Encumbrance:</strong>{" "}
-                  {parcel?.essentialLayers?.encumbrance?.hasMortgage ? "⚠️ Active Bank Lien" : "✅ Clear Title"}
-                </p>
+                {planningInfo.masterPlan.permissibleFar !== undefined && <p><strong>Permissible FAR:</strong> {planningInfo.masterPlan.permissibleFar}</p>}
+                {planningInfo.buildingPermission.status && <p><strong>Building Permission:</strong> {planningInfo.buildingPermission.status}</p>}
+                {encumbranceInfo.status && <p><strong>Encumbrance:</strong> {encumbranceInfo.status}</p>}
                 {isCourtLocked && (
                   <p className="text-red-700 font-bold bg-red-50 p-1 rounded">
                     🚨 Injunction: {parcel?.disputeRecord?.caseNumber || "Stay Active"}
@@ -294,21 +490,22 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
         )}
 
         {/* SUBDIVISION 11E DEMARCATION LINE (if parcel is subdivided) */}
-        {parcel?.subdivisionData?.isSubdivided && demarcationLine.length === 2 && (
+        {canViewSubdivision && subdivision?.isSubdivided && demarcationLines.map((line, index) => line.length === 2 && (
           <Polyline
-            positions={demarcationLine}
+            key={`subdivision-cut-${index}`}
+            positions={line}
             pathOptions={{ color: "#dc2626", weight: 3, dashArray: "6, 6" }}
           >
             <Tooltip sticky>
               <span className="text-xs font-bold text-red-700">
-                Demarcation Split Line (11E Sketch: {parcel.subdivisionData?.activeSketch?.sketchId || "Demarcated"})
+                Validated geometric split (11E Sketch: {subdivision?.activeSketch?.sketchId || "Demarcated"})
               </span>
             </Tooltip>
           </Polyline>
-        )}
+        ))}
 
         {/* LAYER 3: UTILITIES & WATER SUPPLY */}
-        {showUseCaseLayer && (
+        {!restrictedView && showUseCaseLayer && (
           <>
             {waterPipelineCoords.length === 2 && (
               <Polyline
@@ -339,7 +536,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
         )}
 
         {/* AI SATELLITE RADAR */}
-        {showAiRadar && hasAiAnomaly && anomalyCoords.length > 0 && (
+        {!restrictedView && showChangeDetection && hasAiAnomaly && anomalyCoords.length > 0 && (
           <Polygon
             positions={anomalyCoords}
             pathOptions={{
@@ -364,7 +561,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
         )}
 
         {/* LIVE CORS GNSS ROVER TELEMETRY PIN */}
-        {liveRoverPoint && (
+        {!restrictedView && liveRoverPoint && (
           <Circle
             center={[liveRoverPoint.lat, liveRoverPoint.lng]}
             radius={5}
@@ -378,7 +575,19 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
           </Circle>
         )}
 
-        <FitToParcel geoJson={geoJson} />
+        {isSearchResult && leafletCoords.length > 0 && (
+          <Polygon
+            positions={leafletCoords}
+            pathOptions={{ color: "#0B2545", weight: 5, fillColor: "#F59E0B", fillOpacity: 0.22 }}
+            interactive={false}
+          />
+        )}
+
+        <FitToParcel
+          geoJson={geoJson}
+          fitKey={isSearchResult ? location.key : null}
+          fitRequest={fitRequest}
+        />
       </MapContainer>
 
       {/* Bottom Map Legend */}
@@ -388,19 +597,25 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px" }) => {
             <span className={`h-2.5 w-2.5 rounded-full ${isCourtLocked ? "bg-red-600" : "bg-amber-400"}`} />
             {isCourtLocked ? "Disputed / Locked Cadastre" : "Cadastral Boundary"}
           </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-            Master Plan Zoning
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="h-1 w-4 bg-sky-500" />
-            Water Conduits
-          </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="h-1 w-4 bg-yellow-500" />
-            11kV Grid
-          </span>
-          {isCourtLocked && (
+          {!restrictedView && (
+            <>
+              {planningInfo.zoningGeoJson && (
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                Recorded planning designation
+              </span>
+              )}
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="h-1 w-4 bg-sky-500" />
+                Water Conduits
+              </span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="h-1 w-4 bg-yellow-500" />
+                11kV Grid
+              </span>
+            </>
+          )}
+          {!restrictedView && isCourtLocked && (
             <span className="flex items-center gap-1 font-extrabold text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
               <Lock size={12} />
               Court Stay Active

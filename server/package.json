@@ -6,19 +6,23 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "seed": "node src/scripts/seedDemoData.js"
+    "seed": "node src/scripts/seedDemoData.js",
+    "test:unified-parcel-record": "node --test src/services/parcelCentricRecordService.test.js src/services/citizenParcelViewService.test.js src/services/parcelTransactionService.test.js"
   },
   "dependencies": {
     "axios": "^1.7.4",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.2",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.6.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "polygon-clipping": "^0.15.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   }
 }
-

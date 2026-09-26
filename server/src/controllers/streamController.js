@@ -19,7 +19,7 @@ export const handleSseStream = (req, res) => {
       type: "SYSTEM_CONNECTED",
       clientId,
       timestamp: new Date().toISOString(),
-      message: "Connected to National Land Stack DPI Real-Time Gateway (DoLR)"
+      message: "Connected to the administrative event stream."
     })}\n\n`
   );
 

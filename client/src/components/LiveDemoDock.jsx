@@ -15,14 +15,12 @@ import {
   Scissors,
   Sparkles,
   Unlock,
-  Zap
 } from "lucide-react";
 import {
   createBankLienApi,
   issueCourtInjunctionApi,
   liftCourtInjunctionApi,
-  simulateDpiEventApi,
-  simulateFastTrackSroDeed
+  simulateDpiEventApi
 } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useLiveEvents } from "../context/LiveEventContext";
@@ -48,24 +46,7 @@ const LiveDemoDock = ({
     setTimeout(() => setActionFeedback(""), 4000);
   };
 
-  // 1. Fast-track SRO deed simulation (<1s end-to-end)
-  const handleSimulateSroDeed = async () => {
-    setIsExecuting(true);
-    try {
-      const res = await simulateFastTrackSroDeed(targetParcel, {
-        buyerName: "Rajeshwar Sundaram",
-        consideration: "₹ 1,18,00,000",
-        stampDuty: "₹ 5,90,000"
-      });
-      showFeedback(`⚡ SRO deed registered & e-Mutation auto-sanctioned in 420ms!`);
-    } catch (err) {
-      showFeedback(err.response?.data?.message || "SRO deed blocked or error");
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-
-  // 2. Issue Instant Court Stay Order (RCCMS)
+  // 2. Issue court stay order (RCCMS)
   const handleIssueCourtStay = async () => {
     setIsExecuting(true);
     try {
@@ -168,10 +149,10 @@ const LiveDemoDock = ({
           onClick={() => setIsExpanded(true)}
           className="group flex items-center gap-2.5 rounded-full border border-amber-400 bg-earth-950/90 px-4 py-2.5 text-xs font-black text-amber-300 shadow-2xl backdrop-blur-md transition hover:scale-105 hover:bg-earth-900"
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-earth-950 animate-pulse">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-earth-950">
             <Zap size={13} />
           </span>
-          <span>Jury Live Demonstration Dock</span>
+          <span>Departmental Operations Console</span>
           <ChevronUp size={15} className="text-gray-400 transition group-hover:text-white" />
         </button>
       ) : (
@@ -185,7 +166,7 @@ const LiveDemoDock = ({
               </span>
               <div>
                 <h4 className="text-xs font-black text-earth-950 uppercase tracking-wider">
-                  Live Demonstration Console
+                  Departmental Operations Console
                 </h4>
                 <p className="text-[10px] text-earth-500">
                   Target: <strong className="font-mono text-earth-800">{targetParcel}</strong>
@@ -243,27 +224,6 @@ const LiveDemoDock = ({
           {/* TAB 1: INTER-AGENCY EVENTS */}
           {activeTab === "events" && (
             <div className="mt-3 space-y-2 text-xs">
-              {/* SRO Fast Track */}
-              <button
-                type="button"
-                onClick={handleSimulateSroDeed}
-                disabled={isExecuting}
-                className="w-full flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/70 p-2.5 text-left transition hover:bg-blue-100/70 disabled:opacity-50"
-              >
-                <div>
-                  <p className="font-bold text-blue-950 flex items-center gap-1.5">
-                    <Zap size={14} className="text-blue-700" />
-                    Simulate SRO Deed Registration
-                  </p>
-                  <p className="text-[10px] text-blue-800/80 mt-0.5">
-                    Executes deed ➔ Auto-triggers e-Mutation in &lt;1 second
-                  </p>
-                </div>
-                <span className="text-[10px] font-mono bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full font-bold">
-                  SRO ➔ Rev
-                </span>
-              </button>
-
               {/* Court Injunction */}
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -327,7 +287,7 @@ const LiveDemoDock = ({
               >
                 <div>
                   <p className="font-bold text-purple-950 flex items-center gap-1.5">
-                    <Radio size={14} className="text-purple-700 animate-pulse" />
+                    <Radio size={14} className="text-purple-700" />
                     Simulate CORS GNSS Rover
                   </p>
                   <p className="text-[10px] text-purple-800/80 mt-0.5">
@@ -372,7 +332,7 @@ const LiveDemoDock = ({
                   <span className="text-rose-700 font-bold">🛰️</span>
                   <div>
                     <p className="font-bold text-rose-950">Bi-Temporal Satellite Slider</p>
-                    <p className="text-[10px] text-rose-800/80">Compare 2024 vs 2026 AI change radar</p>
+                    <p className="text-[10px] text-rose-800/80">Compare 2024 and 2026 satellite imagery</p>
                   </div>
                 </div>
               </button>
