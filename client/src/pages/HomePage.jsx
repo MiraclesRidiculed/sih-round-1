@@ -1,14 +1,31 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertTriangle, BookOpen, CheckCircle, Database, Landmark, Layers, MapPinned, Search, ShieldCheck, Zap } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle,
+  Database,
+  Landmark,
+  Layers,
+  MapPinned,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Zap
+} from "lucide-react";
 import { fetchBlockchainStatus, fetchDashboard, searchParcels } from "../api/client";
+import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
+import { useLiveEvents } from "../context/LiveEventContext";
 import MetricCard from "../components/MetricCard";
 import ParcelList from "../components/ParcelList";
 import SearchBar from "../components/SearchBar";
 import StatusPill from "../components/StatusPill";
 
 const HomePage = () => {
-  const { activeRole } = useOutletContext() || { activeRole: "citizen" };
+  const { activeRole, currentPersona } = useAuth();
+  const { t } = useLanguage();
+  const { refreshKey } = useLiveEvents();
+
   const [dashboard, setDashboard] = useState(null);
   const [blockchainStatus, setBlockchainStatus] = useState(null);
   const [selectedState, setSelectedState] = useState("All");
@@ -18,21 +35,20 @@ const HomePage = () => {
 
   const deferredQuery = useDeferredValue(query);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [dashboardData, blockchainData] = await Promise.all([fetchDashboard(), fetchBlockchainStatus()]);
-        setDashboard(dashboardData);
-        setBlockchainStatus(blockchainData);
-        setResults(dashboardData.featuredParcels);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadData = async () => {
+    try {
+      const [dashboardData, blockchainData] = await Promise.all([fetchDashboard(), fetchBlockchainStatus()]);
+      setDashboard(dashboardData);
+      setBlockchainStatus(blockchainData);
+      setResults(dashboardData.featuredParcels);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    load();
-  }, []);
+  useEffect(() => {
+    loadData();
+  }, [refreshKey]);
 
   useEffect(() => {
     const search = async () => {
@@ -130,25 +146,27 @@ const HomePage = () => {
       {/* Role Context Bar */}
       <div className="rounded-2xl border border-earth-200 bg-white/90 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-earth-900 text-white font-bold">
-              {activeRole === "citizen" ? "👤" : activeRole === "revenue" ? "📜" : activeRole === "planning" ? "📐" : "🖋️"}
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-earth-900 text-xl text-white shadow-xs shrink-0">
+              {currentPersona.avatar}
             </span>
             <div>
-              <span className="font-bold text-earth-950 uppercase">
-                Active Portal Persona: {activeRole === "citizen" ? "Citizen / Public User" : activeRole === "revenue" ? "Revenue Officer (Tehsildar / VAO)" : activeRole === "planning" ? "Town Planning Authority" : "Sub-Registrar (SRO)"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-earth-950 text-sm">
+                  {currentPersona.name}
+                </span>
+                <span className="rounded-full bg-earth-100 px-2 py-0.5 text-[10px] font-bold text-earth-800 border">
+                  {currentPersona.designation}
+                </span>
+              </div>
               <p className="text-earth-600 mt-0.5">
-                {activeRole === "citizen" && "Explore parcels, view 3-tier GIS layers, download Bhu-Aadhaar Property Cards, and submit online service requests."}
-                {activeRole === "revenue" && "Scrutinize Record of Rights (RoR), approve inheritance mutations, and review 11E survey sketches."}
-                {activeRole === "planning" && "Verify Master Plan zoning compliance, inspect sanctioned building permissions, and detect lake buffer violations."}
-                {activeRole === "sro" && "Conduct pre-registration encumbrance checks and prevent unlawful deed registrations."}
+                {currentPersona.department}
               </p>
             </div>
           </div>
 
-          <div className="shrink-0 text-earth-500">
-            Switch roles using the top-right header selector
+          <div className="shrink-0 text-earth-500 text-[11px]">
+            Switch roles using the top-right header selector or Live Demo Dock
           </div>
         </div>
       </div>
@@ -189,7 +207,7 @@ const HomePage = () => {
         <SearchBar
           value={query}
           onChange={setQuery}
-          placeholder="Try searching ULPIN '33030400100482', '04010100200814', or 'Avalahalli'..."
+          placeholder={t("searchPlaceholder")}
         />
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-earth-600">
@@ -207,6 +225,13 @@ const HomePage = () => {
             className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800 hover:bg-amber-100 font-mono"
           >
             04010100200814 (Chandigarh UT)
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuery("KAR-BGM-0003")}
+            className="rounded-full bg-red-50 px-2.5 py-1 text-red-800 hover:bg-red-100 font-mono font-bold"
+          >
+            KAR-BGM-0003 (Court Stay Active)
           </button>
           <button
             type="button"

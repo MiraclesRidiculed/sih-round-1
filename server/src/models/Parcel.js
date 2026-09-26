@@ -97,7 +97,45 @@ const parcelSchema = new Schema(
       default: {}
     },
     qrToken: { type: String, required: true, unique: true },
-    demoNotes: { type: String, default: "" }
+    demoNotes: { type: String, default: "" },
+    disputeRecord: {
+      type: Schema.Types.Mixed,
+      default: {
+        hasActiveInjunction: false,
+        transactionLock: false,
+        caseNumber: "",
+        courtName: "",
+        presidingBench: "",
+        caseType: "",
+        stayOrderDate: "",
+        injunctionStatus: "No Pending Injunction",
+        injunctionTerms: "",
+        nextHearing: "",
+        orderReference: "",
+        blockedAttemptsCount: 0
+      }
+    },
+    subdivisionData: {
+      type: Schema.Types.Mixed,
+      default: {
+        isSubdivided: false,
+        activeSketch: null,
+        subdivisions: []
+      }
+    },
+    verticalStrata: {
+      type: Schema.Types.Mixed,
+      default: {
+        hasVerticalUnits: false,
+        buildingName: "",
+        totalFloors: 0,
+        floors: []
+      }
+    },
+    simulationState: {
+      type: Schema.Types.Mixed,
+      default: {}
+    }
   },
   { timestamps: true }
 );

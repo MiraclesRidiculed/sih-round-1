@@ -468,7 +468,46 @@ export const demoParcels = [
     },
     qrToken: "scan-chd-ut-0001",
     demoNotes:
-      "Department of Land Resources (DoLR) Pilot Location (Chandigarh UT): Demonstrates high-value urban land administration, commercial property registers, heritage zoning constraints, and municipal tax harmonization."
+      "Department of Land Resources (DoLR) Pilot Location (Chandigarh UT): Demonstrates high-value urban land administration, commercial property registers, heritage zoning constraints, and municipal tax harmonization.",
+    verticalStrata: {
+      hasVerticalUnits: true,
+      buildingName: "Chandigarh Commercial Arcade SCO 84-85",
+      totalFloors: 4,
+      totalUnits: 7,
+      floors: [
+        {
+          floorNumber: 0,
+          floorLabel: "Ground Floor Retail Arcade",
+          units: [
+            { unitUlpin: "04010100200814-G01", unitNumber: "Shop G-101", carpetAreaSqFt: 620, owner: "Gurpreet Singh Dhillon (60%)", use: "Retail Showroom", status: "Occupied" },
+            { unitUlpin: "04010100200814-G02", unitNumber: "Shop G-102", carpetAreaSqFt: 580, owner: "Simran Kaur Dhillon (40%)", use: "Cafe & Confectionery", status: "Occupied" }
+          ]
+        },
+        {
+          floorNumber: 1,
+          floorLabel: "First Floor Commercial Suites",
+          units: [
+            { unitUlpin: "04010100200814-F101", unitNumber: "Suite 101", carpetAreaSqFt: 850, owner: "Dhillon Commercial Assets LLP", use: "Corporate Office", status: "Leased" },
+            { unitUlpin: "04010100200814-F102", unitNumber: "Suite 102", carpetAreaSqFt: 750, owner: "Dhillon Commercial Assets LLP", use: "Legal Chambers", status: "Occupied" }
+          ]
+        },
+        {
+          floorNumber: 2,
+          floorLabel: "Second Floor Tech Incubator",
+          units: [
+            { unitUlpin: "04010100200814-F201", unitNumber: "Suite 201", carpetAreaSqFt: 820, owner: "TechSpire Infotech Ltd", use: "Software Studio", status: "Occupied" },
+            { unitUlpin: "04010100200814-F202", unitNumber: "Suite 202", carpetAreaSqFt: 780, owner: "TechSpire Infotech Ltd", use: "R&D Lab", status: "Occupied" }
+          ]
+        },
+        {
+          floorNumber: 3,
+          floorLabel: "Third Floor Executive Penthouse",
+          units: [
+            { unitUlpin: "04010100200814-F301", unitNumber: "Executive Suite", carpetAreaSqFt: 1250, owner: "Gurpreet Singh Dhillon", use: "Boardroom & Headquarters", status: "Owner Occupied" }
+          ]
+        }
+      ]
+    }
   },
 
   // 3. KARNATAKA PILOT PARCEL 1 (Bengaluru Urban - Peri-urban conversion with AI Encroachment Alert)
@@ -1101,7 +1140,32 @@ export const demoParcels = [
       lastAnchoredAt: "2023-12-05T09:00:00.000Z"
     },
     qrToken: "scan-kar-bgm-0003",
-    demoNotes: "Demonstrates automated conflict detection: boundary overlap between cadastral maps and physical possession."
+    demoNotes: "Demonstrates automated conflict detection: boundary overlap between cadastral maps and physical possession.",
+    disputeRecord: {
+      hasActiveInjunction: true,
+      transactionLock: true,
+      caseNumber: "RA-114/2023",
+      courtName: "Assistant Commissioner Revenue Court, Belagavi",
+      presidingBench: "Court of the Assistant Commissioner & Sub-Divisional Magistrate",
+      caseType: "Boundary Demarcation & Title Injunction Appeal",
+      stayOrderDate: "2023-12-05",
+      injunctionStatus: "Active Court Injunction (Stay on Alienation)",
+      injunctionTerms: "Interim stay restraining sale, registration, conveyance, mutation and boundary alteration under Section 52 Transfer of Property Act pending resolution of boundary overlap with Survey 45/2.",
+      nextHearing: "2026-11-12",
+      orderReference: "AC/BGM/REV/RA-114/2023-24",
+      blockedAttemptsCount: 1
+    },
+    subdivisionData: {
+      isSubdivided: false,
+      activeSketch: null,
+      subdivisions: []
+    },
+    verticalStrata: {
+      hasVerticalUnits: false,
+      buildingName: "",
+      totalFloors: 0,
+      floors: []
+    }
   }
 ];
 
@@ -1415,27 +1479,67 @@ export const demoOwnershipEvents = [
 
 export const demoUsers = [
   {
-    name: "National DPI Administrator",
+    name: "Dr. Rameshwar Sharma, IAS",
     email: "admin@landstack.gov.in",
     role: "admin",
+    designation: "Joint Secretary / National DPI Administrator",
     department: "Department of Land Resources (DoLR), MoRD",
     passwordHash: "",
     lastLoginAt: "2026-08-20T09:45:00.000Z"
   },
   {
-    name: "Tamil Nadu Revenue Officer",
+    name: "K. Annadurai, DRO",
     email: "tehsildar@tamilnilam.tn.gov.in",
-    role: "verifier",
+    role: "revenue_officer",
+    designation: "District Revenue Officer & Tehsildar",
     department: "Revenue & Disaster Management, Tamil Nadu",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:10:00.000Z"
   },
   {
-    name: "Chandigarh Estate Officer",
-    email: "estate@chd.gov.in",
-    role: "verifier",
-    department: "Estate Office, Chandigarh Administration",
+    name: "P. Vignesh, LIS",
+    email: "surveyor@surveyofindia.gov.in",
+    role: "surveyor",
+    designation: "Head Licensed Land Surveyor (CORS GNSS)",
+    department: "Survey Settlement & Land Records (SSLR)",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:12:00.000Z"
+  },
+  {
+    name: "Meenakshi Sundaram",
+    email: "sro.sriperumbudur@tnreginet.gov.in",
+    role: "sro",
+    designation: "Sub-Registrar (SRO Grade-I)",
+    department: "Registration & Stamps Department",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:15:00.000Z"
+  },
+  {
+    name: "Vikram Malhotra",
+    email: "mortgages@iob.bank.in",
+    role: "bank",
+    designation: "Chief Credit Risk Officer (Mortgage Cell)",
+    department: "Indian Overseas Bank / Core Banking",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:18:00.000Z"
+  },
+  {
+    name: "Hon. Justice B. Patil",
+    email: "rccms.bench@judiciary.gov.in",
+    role: "court",
+    designation: "Presiding Officer & Assistant Commissioner",
+    department: "Revenue Court Case Management System (RCCMS)",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:20:00.000Z"
+  },
+  {
+    name: "Ananya Narayanan",
+    email: "ananya.citizen@gmail.com",
+    role: "citizen",
+    designation: "Citizen Landowner & Investor",
+    department: "Public User",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:25:00.000Z"
   }
 ];
+

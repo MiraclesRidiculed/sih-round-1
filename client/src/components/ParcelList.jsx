@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, CheckCircle2, Layers, MapPinned, ShieldAlert, Zap } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, CheckCircle2, Gavel, Layers, Lock, MapPinned, Scissors, ShieldAlert, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatArea, ownerLine } from "../utils/format";
 import StatusPill from "./StatusPill";
@@ -29,12 +29,19 @@ const ParcelList = ({ parcels = [], title }) => (
       {parcels.map((parcel) => {
         const hasAiAlert = Boolean(parcel.aiGeospatial?.satelliteChangeDetection?.anomalyDetected);
         const hasMortgage = Boolean(parcel.essentialLayers?.encumbrance?.hasMortgage);
+        const isCourtLocked = Boolean(parcel.disputeRecord?.transactionLock || parcel.essentialLayers?.ror?.revenueCourtDispute);
+        const hasSubdivision = Boolean(parcel.subdivisionData?.isSubdivided);
+        const has3D = Boolean(parcel.verticalStrata?.hasVerticalUnits);
 
         return (
           <Link
             key={parcel.parcelId}
             to={`/parcels/${parcel.parcelId}`}
-            className="group relative overflow-hidden rounded-[2.2rem] border border-white/70 bg-white/85 p-6 shadow-panel transition hover:-translate-y-1 hover:border-earth-300 hover:shadow-xl"
+            className={`group relative overflow-hidden rounded-[2.2rem] border bg-white/85 p-6 shadow-panel transition hover:-translate-y-1 hover:shadow-xl ${
+              isCourtLocked
+                ? "border-red-300 hover:border-red-400 bg-red-50/20"
+                : "border-white/70 hover:border-earth-300"
+            }`}
           >
             {/* Top State Badge & Status */}
             <div className="flex items-start justify-between gap-3">
@@ -53,7 +60,13 @@ const ParcelList = ({ parcels = [], title }) => (
                 <StatusPill status={parcel.verificationHint?.status}>
                   {parcel.verificationHint?.status || "attention"}
                 </StatusPill>
-                {hasAiAlert && (
+                {isCourtLocked && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-xs animate-pulse">
+                    <Lock size={10} />
+                    Court Stay Active
+                  </span>
+                )}
+                {hasAiAlert && !isCourtLocked && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800 animate-pulse">
                     <Zap size={10} />
                     AI Alert
@@ -84,7 +97,7 @@ const ParcelList = ({ parcels = [], title }) => (
               </div>
             </div>
 
-            {/* 3-Tier Layer Tags */}
+            {/* Feature Pills */}
             <div className="mt-4 flex flex-wrap gap-1.5 text-[11px]">
               <span className="rounded-md bg-amber-50 px-2 py-0.5 font-medium text-amber-900 border border-amber-200/60">
                 L1: Survey {parcel.surveyNumber}{parcel.hissaNumber ? `/${parcel.hissaNumber}` : ""}
@@ -93,13 +106,29 @@ const ParcelList = ({ parcels = [], title }) => (
                 L2: {parcel.essentialLayers?.masterPlanZoning?.zoneCategory || parcel.landUse || "Zoning"}
               </span>
               <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-medium text-emerald-900 border border-emerald-200/60">
-                L3: {hasMortgage ? "⚠️ Bank Mortgage Lien" : "✅ Clear Title / Tax Paid"}
+                L3: {hasMortgage ? "⚠️ Bank Mortgage" : "✅ Clear Title"}
               </span>
+              {hasSubdivision && (
+                <span className="rounded-md bg-purple-50 px-2 py-0.5 font-bold text-purple-900 border border-purple-200 flex items-center gap-1">
+                  <Scissors size={10} />
+                  11E Split
+                </span>
+              )}
+              {has3D && (
+                <span className="rounded-md bg-purple-50 px-2 py-0.5 font-bold text-purple-900 border border-purple-200 flex items-center gap-1">
+                  <Building2 size={10} />
+                  3D Strata
+                </span>
+              )}
             </div>
 
             {/* Summary & Open Action */}
             <div className="mt-4 flex items-center justify-between border-t border-earth-100 pt-3 text-xs">
-              <p className="max-w-md text-earth-600 line-clamp-1">{parcel.verificationHint?.summary}</p>
+              <p className="max-w-md text-earth-600 line-clamp-1">
+                {isCourtLocked
+                  ? `Court Stay Active: ${parcel.disputeRecord?.caseNumber || "Section 52 Injunction"}`
+                  : parcel.verificationHint?.summary}
+              </p>
               <span className="inline-flex items-center gap-1.5 font-bold text-earth-900 transition group-hover:translate-x-1 shrink-0 ml-2">
                 Inspect 3 Layers
                 <ArrowRight size={14} />

@@ -8,10 +8,20 @@ const userSchema = new Schema(
     email: { type: String, required: true, unique: true, index: true },
     role: {
       type: String,
-      enum: ["admin", "verifier", "citizen"],
+      enum: [
+        "admin",
+        "revenue_officer",
+        "surveyor",
+        "sro",
+        "bank",
+        "court",
+        "citizen"
+      ],
       default: "citizen"
     },
     department: { type: String, default: "" },
+    designation: { type: String, default: "" },
+    jurisdiction: { type: String, default: "National / Multi-State" },
     passwordHash: { type: String, default: "" },
     lastLoginAt: { type: Date, default: null }
   },
@@ -19,4 +29,3 @@ const userSchema = new Schema(
 );
 
 export const User = mongoose.model("User", userSchema);
-

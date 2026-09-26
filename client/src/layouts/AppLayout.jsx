@@ -1,6 +1,24 @@
 import { useState } from "react";
-import { BookOpen, FileCheck, Landmark, Layers, MapPinned, QrCode, Shield, UserCheck } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  FileCheck,
+  Globe,
+  Landmark,
+  Layers,
+  MapPinned,
+  QrCode,
+  Radio,
+  Shield,
+  UserCheck,
+  X,
+  Zap
+} from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
+import { useLiveEvents } from "../context/LiveEventContext";
+import LiveDemoDock from "../components/LiveDemoDock";
 
 const navClass = ({ isActive }) =>
   `rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition ${
@@ -8,75 +26,138 @@ const navClass = ({ isActive }) =>
   }`;
 
 const AppLayout = () => {
-  const [activeRole, setActiveRole] = useState("citizen");
+  const { activeRole, switchRole, currentPersona, demoRolePersonas } = useAuth();
+  const { lang, setLanguage, t, availableLangs } = useLanguage();
+  const { gatewayStatus, activeToasts, removeToast } = useLiveEvents();
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(167,128,57,0.14),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(47,143,165,0.12),_transparent_32%),linear-gradient(180deg,_#f8f6ef_0%,_#f2eddc_55%,_#edf6f1_100%)]">
       {/* Subtle National Tricolor Accent Bar */}
       <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-600" />
 
+      {/* Floating Real-Time Toast Notifications (Top Right) */}
+      <div className="fixed top-4 right-4 z-[3000] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        {activeToasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto flex items-start justify-between gap-3 rounded-2xl border border-white/60 bg-white/95 p-3.5 shadow-2xl backdrop-blur-lg animate-in slide-in-from-right duration-200"
+          >
+            <div className="flex items-start gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400 text-earth-950 text-xs shrink-0 mt-0.5">
+                <Zap size={14} />
+              </span>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-earth-500">
+                  {toast.type || "DPI Real-Time Event"}
+                </span>
+                <p className="text-xs font-extrabold text-earth-950 mt-0.5">
+                  {toast.payload?.summary || toast.message || "Inter-Agency State Synchronized"}
+                </p>
+                {toast.payload?.parcelId && (
+                  <p className="text-[10px] font-mono text-earth-600">
+                    ULPIN / Parcel: {toast.payload.parcelId}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => removeToast(toast.id)}
+              className="text-earth-400 hover:text-earth-800 p-1"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 pb-12 pt-5 sm:px-6 lg:px-8">
         {/* Header Banner */}
-        <header className="glass-panel mb-8 flex flex-col gap-5 rounded-[2.2rem] p-5 shadow-panel md:flex-row md:items-center md:justify-between">
+        <header className="glass-panel mb-8 flex flex-col gap-4 rounded-[2.2rem] p-5 shadow-panel md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-3.5">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-900 text-2xl text-amber-100 shadow-md">
               🏛️
             </div>
             <div>
-              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100/80 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.22em] text-amber-900">
-                <Landmark size={12} />
-                Govt. of India • DoLR Pilot Platform
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/80 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.22em] text-amber-900">
+                  <Landmark size={12} />
+                  Govt. of India • DoLR Pilot Platform
+                </span>
+
+                {/* Compact Live DPI Gateway Telemetry Pill */}
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wide border shadow-xs ${
+                  gatewayStatus === "connected"
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                    : gatewayStatus === "reconnecting"
+                    ? "bg-amber-50 text-amber-800 border-amber-300"
+                    : "bg-rose-50 text-rose-800 border-rose-300"
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${
+                    gatewayStatus === "connected"
+                      ? "bg-emerald-500 animate-pulse"
+                      : gatewayStatus === "reconnecting"
+                      ? "bg-amber-500 animate-ping"
+                      : "bg-rose-500"
+                  }`} />
+                  {gatewayStatus === "connected"
+                    ? t("liveGatewayConnected")
+                    : gatewayStatus === "reconnecting"
+                    ? t("liveGatewayReconnecting")
+                    : t("liveGatewayOffline")}
+                </span>
               </div>
+
               <h1 className="text-2xl font-black tracking-tight text-earth-950 sm:text-3xl">
-                Land Stack <span className="text-sm font-normal text-earth-600">| Integrated DPI for Land Governance</span>
+                Land Stack <span className="text-sm font-normal text-earth-600">| {t("subtitle")}</span>
               </h1>
-              <p className="mt-1 max-w-2xl text-xs text-earth-700 sm:text-sm">
-                Unified GIS-based Digital Public Infrastructure linking Cadastral Maps, Record of Rights (RoR),
-                Master Plan Zoning, Utilities, and Blockchain Audit Trails across Indian States & UTs.
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-col items-start gap-3 md:items-end">
-            {/* Persona / Role Switcher */}
-            <div className="flex items-center gap-1 rounded-full border border-earth-200 bg-earth-50/80 p-1 text-xs">
-              <span className="px-2 font-bold text-earth-500 uppercase text-[10px]">Role:</span>
-              <button
-                type="button"
-                onClick={() => setActiveRole("citizen")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                  activeRole === "citizen" ? "bg-earth-900 text-white shadow-xs" : "text-earth-700 hover:bg-earth-200/60"
-                }`}
-              >
-                👤 Citizen
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveRole("revenue")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                  activeRole === "revenue" ? "bg-earth-900 text-white shadow-xs" : "text-earth-700 hover:bg-earth-200/60"
-                }`}
-              >
-                📜 Revenue
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveRole("planning")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                  activeRole === "planning" ? "bg-earth-900 text-white shadow-xs" : "text-earth-700 hover:bg-earth-200/60"
-                }`}
-              >
-                📐 Planning
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveRole("sro")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                  activeRole === "sro" ? "bg-earth-900 text-white shadow-xs" : "text-earth-700 hover:bg-earth-200/60"
-                }`}
-              >
-                🖋️ SRO
-              </button>
+          <div className="flex flex-col items-start gap-2.5 md:items-end">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Language Selector */}
+              <div className="flex items-center rounded-full border border-earth-200 bg-earth-50/80 p-0.5 text-[11px] font-bold">
+                <span className="pl-2 pr-1 text-earth-400">
+                  <Globe size={12} />
+                </span>
+                {[
+                  { code: "en", label: "EN" },
+                  { code: "hi", label: "हि" },
+                  { code: "kn", label: "ಕ" },
+                  { code: "ta", label: "த" }
+                ].map(({ code, label }) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLanguage(code)}
+                    className={`rounded-full px-2 py-0.5 transition ${
+                      lang === code ? "bg-earth-900 text-white shadow-xs" : "text-earth-600 hover:text-earth-900"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* 6-Persona Role Selector */}
+              <div className="flex items-center gap-1 rounded-full border border-earth-200 bg-earth-50/80 p-1 text-xs">
+                <span className="px-2 font-bold text-earth-500 uppercase text-[10px]">Persona:</span>
+                <select
+                  value={activeRole}
+                  onChange={(e) => switchRole(e.target.value)}
+                  className="rounded-full bg-white px-3 py-1 font-bold text-earth-900 border border-earth-300 shadow-xs focus:outline-none cursor-pointer text-xs"
+                >
+                  <option value="citizen">👤 Citizen Landowner</option>
+                  <option value="revenue_officer">📜 Revenue Officer (Tehsildar)</option>
+                  <option value="surveyor">📐 Revenue Surveyor (CORS GNSS)</option>
+                  <option value="sro">🖋️ Sub-Registrar (SRO)</option>
+                  <option value="bank">🏦 Bank (Finacle / Mortgage)</option>
+                  <option value="court">⚖️ Revenue Court (RCCMS)</option>
+                  <option value="admin">🏛️ National Admin (DoLR)</option>
+                </select>
+              </div>
             </div>
 
             {/* Navigation links */}
@@ -103,34 +184,24 @@ const AppLayout = () => {
           </div>
         </header>
 
-        {/* Main Content Area */}
+        {/* Main Routed Page Content */}
         <main className="flex-1">
-          <Outlet context={{ activeRole, setActiveRole }} />
+          <Outlet />
         </main>
 
-        {/* Official Footer */}
-        <footer className="mt-12 rounded-[2rem] border border-earth-200/80 bg-white/75 p-5 text-xs text-earth-700 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-bold text-earth-900">
-                Land Stack — An Integrated GIS-based Digital Public Infrastructure for Land Governance
-              </p>
-              <p className="mt-0.5 text-earth-600">
-                Department of Land Resources (DoLR), Ministry of Rural Development, Government of India.
-                Pilots active in Chandigarh (UT) and Tamil Nadu (Launched 31 Dec 2025).
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-earth-500">
-              <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
-                <Shield size={13} />
-                Sepolia Audit Anchor Active
-              </span>
-              <span>•</span>
-              <span>14-Digit ULPIN Standard</span>
-            </div>
-          </div>
+        {/* Footer */}
+        <footer className="mt-12 border-t border-earth-200/80 pt-6 text-center text-xs text-earth-600">
+          <p className="font-semibold text-earth-800">
+            Land Stack: National Integrated GIS-Based Digital Public Infrastructure (DPI) for Land Governance
+          </p>
+          <p className="mt-1 text-[11px] text-earth-500">
+            Department of Land Resources (DoLR), Ministry of Rural Development, Government of India • SIH26014
+          </p>
         </footer>
       </div>
+
+      {/* Persistent Floating Live Demo Dock */}
+      <LiveDemoDock />
     </div>
   );
 };
