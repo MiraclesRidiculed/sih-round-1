@@ -158,7 +158,8 @@ test("maps available tier modules from multiple state parcel records", () => {
   assert.equal(tamilNaduLayers.availability.find((item) => item.id === "buildingPermission").status, "available");
   assert.ok(tamilNaduLayers.tabs.some((tab) => tab.id === "taxesUtilities"));
   assert.equal(tamilNaduLayers.sectionsByTab.encumbrances[0].rows[0].value, "Yes");
-  assert.equal(tamilNaduLayers.sectionsByTab.taxesUtilities.length, 3);
+  assert.ok(tamilNaduLayers.sectionsByTab.taxesUtilities.some((item) => item.title === "Property tax"));
+  assert.ok(tamilNaduLayers.sectionsByTab.taxesUtilities.some((item) => item.title === "Water"));
 
   const chandigarhLayers = getParcelLayers(toUnifiedRecord({
     ulpin: "04010100200814",
@@ -312,4 +313,54 @@ test("reports unavailable planning information without exposing restricted map o
   });
   assert.equal(inaccessible.permitted, false);
   assert.equal(inaccessible.zoningGeoJson, null);
+});
+
+test("maps parcel tax assessment and recorded utility infrastructure without inventing connections", () => {
+  const record = toUnifiedRecord({
+    ...parcel,
+    additionalLayers: {
+      propertyTax: {
+        propertyTaxId: "TAX-ULPIN-1",
+        assessmentYear: "2025-26",
+        annualDemand: 34000,
+        paymentStatus: "Paid",
+        updatedAt: "2026-08-20T08:00:00.000Z"
+      },
+      utilities: {
+        waterSupplyLine: "Municipal water main",
+        waterConnectionId: "WTR-001",
+        powerSubstationDistance: "350m from local substation",
+        drainageNetwork: "Storm drainage network recorded",
+        telecomFiber: "Underground telecom duct"
+      },
+      infrastructure: [{ name: "Village road", type: "Road", status: "Recorded", distance: "Adjacent" }]
+    }
+  });
+  const layers = getParcelLayers(record);
+  const sections = layers.sectionsByTab.taxesUtilities;
+  const taxRows = sections.find((item) => item.title === "Property tax").rows;
+  const flattenedRows = sections.flatMap((item) => item.rows);
+
+  assert.ok(taxRows.some((row) => row.label === "ULPIN" && row.value === parcel.ulpin));
+  assert.ok(taxRows.some((row) => row.label === "Property tax identifier" && row.value === "TAX-ULPIN-1"));
+  assert.ok(taxRows.some((row) => row.label === "Assessment year" && row.value === "2025-26"));
+  assert.ok(taxRows.some((row) => row.label === "Payment status" && row.value === "Paid"));
+  assert.ok(taxRows.some((row) => row.label === "Last updated" && row.value !== "Not available"));
+  assert.ok(flattenedRows.some((row) => row.label === "Recorded water connection reference" && row.value === "WTR-001"));
+  assert.ok(flattenedRows.some((row) => row.label === "Recorded distance to power infrastructure"));
+  assert.ok(flattenedRows.some((row) => row.value === "Storm drainage network recorded"));
+  assert.ok(sections.find((item) => item.title === "Road access").rows.some((row) => row.value === "Village road"));
+  assert.ok(flattenedRows.some((row) => row.value === "Underground telecom duct"));
+  assert.ok(!flattenedRows.some((row) => row.label === "Electricity connection reference"));
+});
+
+test("does not fabricate tax or utility details for parcels without configured data", () => {
+  const layers = getParcelLayers(toUnifiedRecord({
+    parcelId: "PARCEL-WITHOUT-FISCAL-DATA",
+    ulpin: "98765432109876"
+  }));
+
+  assert.ok(!layers.sectionsByTab.taxesUtilities.some((item) => item.title === "Property tax"));
+  assert.equal(layers.additionalAvailability.find((item) => item.id === "propertyTax").configured, false);
+  assert.equal(layers.additionalAvailability.find((item) => item.id === "utilities").configured, false);
 });

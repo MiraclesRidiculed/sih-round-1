@@ -65,6 +65,11 @@ test("correlates existing modules and provenance under the parcel ULPIN", () => 
   assert.equal(record.modules.registration.data.sourceRecords[0].id, "doc-deed");
   assert.equal(record.modules.propertyTax.data.propertyTaxId, "TAX-1");
   assert.equal(record.modules.utilities.data.utilities.waterConnectionId, "WATER-1");
+  assert.equal(record.modules.propertyTax.source.mode, "local-demo");
+  assert.equal(record.modules.propertyTax.source.authoritative, false);
+  assert.equal(record.modules.utilities.source.mode, "local-demo");
+  assert.equal(record.modules.utilities.source.authoritative, false);
+  assert.deepEqual(record.modules.utilities.data.infrastructure, {});
   assert.equal(record.modules.ror.source.systemName, "Tamil Nilam");
   assert.equal(record.modules.ror.source.mode, "local-demo");
   assert.equal(record.synchronization.realTime, false);

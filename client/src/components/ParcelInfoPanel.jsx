@@ -17,6 +17,9 @@ const ParcelInfoPanel = ({ parcel, onClose, onZoomToParcel, onSearchAnother, onR
   const [transactionType, setTransactionType] = useState("");
   const [transactionBusy, setTransactionBusy] = useState(false);
   const [transactionMessage, setTransactionMessage] = useState("");
+  const modulesAreLocalDemo = (moduleName) =>
+    parcel?.unifiedRecord?.modules?.[moduleName]?.source?.mode === "local-demo" ||
+    parcel?.unifiedRecord?.synchronization?.mode === "local-demo";
   const transactions = parcel?.unifiedRecord?.modules?.transactions?.data?.applications || [];
   const layers = getParcelLayers(parcel?.unifiedRecord);
   const { parcelInfo, tabs, sectionsByTab, boundaryCoordinates, availability, access } = layers;
@@ -189,7 +192,24 @@ const ParcelInfoPanel = ({ parcel, onClose, onZoomToParcel, onSearchAnother, onR
 
   const renderTaxesUtilities = () => (
     <div className="space-y-4">
+      {modulesAreLocalDemo("propertyTax") && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+          Property tax values are local demonstration records, not a live municipal assessment. A last-updated date is shown only when the source record provides one.
+        </p>
+      )}
+      {modulesAreLocalDemo("utilities") && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+          Utility and infrastructure details are local sample data. Recorded network proximity or reference values do not verify an active utility connection.
+        </p>
+      )}
       {renderSections(sectionsByTab.taxesUtilities || [])}
+      {layers.additionalAvailability.find((module) => module.id === "utilities")?.configured &&
+        layers.utilityAvailability.filter((item) => !item.configured).map((item) => (
+          <section key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700">{item.label}</h3>
+            <p className="mt-2 text-sm text-slate-500">Data source not configured</p>
+          </section>
+        ))}
       {layers.additionalAvailability
         .filter((module) => !module.configured)
         .map((module) => (

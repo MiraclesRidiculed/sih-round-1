@@ -66,6 +66,108 @@ const makeModuleSections = (sources, definitions) => definitions
   .map(([key, title, fields]) => section(title, makeRows(sources?.[key], fields)))
   .filter(Boolean);
 
+const utilityRecord = (source, nestedKey) => {
+  const nested = source?.[nestedKey];
+  return nested && typeof nested === "object" && !Array.isArray(nested)
+    ? { ...source, ...nested }
+    : source || {};
+};
+
+const utilitySection = (title, source, fields, parcelId, ulpin) => {
+  const rows = makeRows(source, fields);
+  if (!rows.length) return null;
+  if (parcelId) rows.unshift({ label: "Parcel identifier", value: parcelId });
+  if (ulpin) rows.unshift({ label: "ULPIN", value: ulpin });
+  return { title, rows };
+};
+
+const buildUtilitySections = ({ utilities, infrastructure, parcelId, ulpin }) => {
+  const sections = [
+    utilitySection("Electricity and power infrastructure", utilityRecord(utilities, "electricity"), [
+      ["electricitySupply", "Electricity supply"],
+      ["electricityConnectionId", "Electricity connection reference"],
+      ["electricityProvider", "Electricity provider"],
+      ["electricityStatus", "Electricity service status"],
+      ["powerSubstationDistance", "Recorded distance to power infrastructure"],
+      ["connectionId", "Recorded electricity connection reference"],
+      ["provider", "Electricity provider"],
+      ["status", "Electricity service status"]
+    ], parcelId, ulpin),
+    utilitySection("Water", utilityRecord(utilities, "water"), [
+      ["waterSupplyLine", "Water supply infrastructure"],
+      ["waterConnectionId", "Recorded water connection reference"],
+      ["supplyLine", "Water supply infrastructure"],
+      ["connectionId", "Recorded water connection reference"],
+      ["waterProvider", "Water provider"],
+      ["provider", "Water provider"],
+      ["waterStatus", "Water service status"],
+      ["status", "Water service status"]
+    ], parcelId, ulpin),
+    utilitySection("Sewer and drainage", utilityRecord(utilities, "sewer"), [
+      ["sewerNetwork", "Sewer network"],
+      ["sewerConnectionId", "Recorded sewer connection reference"],
+      ["sewerStatus", "Sewer service status"],
+      ["drainageNetwork", "Recorded drainage infrastructure"],
+      ["network", "Sewer network"],
+      ["connectionId", "Recorded sewer connection reference"],
+      ["status", "Sewer service status"]
+    ], parcelId, ulpin),
+    utilitySection("Road access", utilityRecord(utilities, "roads"), [
+      ["roadAccess", "Road access"],
+      ["roadFrontage", "Road frontage"],
+      ["roadNetwork", "Road network"],
+      ["roadSurface", "Road surface"],
+      ["roadStatus", "Road status"],
+      ["access", "Road access"],
+      ["frontage", "Road frontage"],
+      ["network", "Road network"],
+      ["surface", "Road surface"],
+      ["status", "Road status"]
+    ], parcelId, ulpin),
+    utilitySection("Other utility information", utilities, [
+      ["telecomFiber", "Telecommunications infrastructure"],
+      ["telecommunications", "Telecommunications infrastructure"],
+      ["otherInfrastructure", "Other infrastructure"]
+    ], parcelId, ulpin)
+  ].filter(Boolean);
+
+  const infrastructureItems = Array.isArray(infrastructure)
+    ? infrastructure
+    : infrastructure && typeof infrastructure === "object"
+      ? [infrastructure]
+      : [];
+  const roadItems = infrastructureItems.filter((item) =>
+    /road|street|highway/i.test([item?.name, item?.type, item?.provider].filter(Boolean).join(" "))
+  );
+  const otherInfrastructureItems = infrastructureItems.filter((item) => !roadItems.includes(item));
+  const makeInfrastructureRows = (items) => items.flatMap((item, index) => makeRows(item, [
+    ["name", infrastructureItems.length > 1 ? `Infrastructure ${index + 1}` : "Infrastructure"],
+    ["type", "Type"],
+    ["status", "Recorded status"],
+    ["provider", "Provider"],
+    ["distance", "Recorded distance"]
+  ]));
+  const roadInfrastructureRows = makeInfrastructureRows(roadItems);
+  if (roadInfrastructureRows.length) {
+    const roadSection = sections.find((item) => item.title === "Road access");
+    if (roadSection) {
+      roadSection.rows.push(...roadInfrastructureRows);
+    } else {
+      if (parcelId) roadInfrastructureRows.unshift({ label: "Parcel identifier", value: parcelId });
+      if (ulpin) roadInfrastructureRows.unshift({ label: "ULPIN", value: ulpin });
+      sections.push({ title: "Road access", rows: roadInfrastructureRows });
+    }
+  }
+  const infrastructureRows = makeInfrastructureRows(otherInfrastructureItems);
+  if (infrastructureRows.length) {
+    if (parcelId) infrastructureRows.unshift({ label: "Parcel identifier", value: parcelId });
+    if (ulpin) infrastructureRows.unshift({ label: "ULPIN", value: ulpin });
+    sections.push({ title: "Other infrastructure", rows: infrastructureRows });
+  }
+
+  return sections;
+};
+
 const recordFields = [
   ["rorNumber", "Record number"],
   ["holderName", "Recorded holder"],
@@ -121,20 +223,19 @@ const encumbranceFields = [
 
 const taxFields = [
   ["propertyTaxId", "Property tax identifier"],
+  ["propertyId", "Property identifier"],
+  ["propertyIdentifier", "Property identifier"],
+  ["assessmentNumber", "Assessment reference"],
   ["assessmentYear", "Assessment year"],
+  ["assessmentType", "Assessment type"],
+  ["assessmentBasis", "Assessment basis"],
+  ["assessedValue", "Assessed value", (value) => String(value)],
   ["annualDemand", "Annual demand", (value) => String(value)],
   ["amountPaid", "Amount paid", (value) => String(value)],
   ["duesAmount", "Outstanding amount", (value) => String(value)],
+  ["status", "Assessment status"],
   ["paymentStatus", "Payment status"],
   ["receiptNo", "Receipt reference"]
-];
-
-const utilityFields = [
-  ["waterSupplyLine", "Water supply"],
-  ["waterConnectionId", "Water connection reference"],
-  ["powerSubstationDistance", "Power infrastructure"],
-  ["drainageNetwork", "Drainage"],
-  ["telecomFiber", "Telecommunications"]
 ];
 
 const valuationFields = [
@@ -446,18 +547,43 @@ export const getParcelLayers = (unifiedRecord = {}) => {
   const landUseSections = section("Land use and zoning", landUseRows);
 
   const additionalLayers = parcel.additionalLayers || {};
-  const additionalSections = makeModuleSections(additionalLayers, [
-    ["propertyTax", "Property tax", taxFields],
-    ["utilities", "Utilities and infrastructure", utilityFields],
-    ["infrastructure", "Infrastructure", [
-      ["name", "Name"],
-      ["type", "Type"],
-      ["status", "Status"],
-      ["provider", "Provider"],
-      ["distance", "Distance"]
-    ]],
-    ["valuation", "Valuation", valuationFields]
-  ]);
+  const propertyTaxRecord = additionalLayers.propertyTax || {};
+  const taxRows = hasMeaningfulModuleData(propertyTaxRecord)
+    ? makeRows(propertyTaxRecord, taxFields).concat([{
+        label: "Last updated",
+        value: formatParcelTimestamp(
+          propertyTaxRecord.lastUpdatedAt ||
+          propertyTaxRecord.updatedAt ||
+          modules.propertyTax?.source?.lastSynchronizedAt
+        )
+      }])
+    : [];
+  if (taxRows.length && parcel.parcelId) taxRows.unshift({ label: "Parcel identifier", value: parcel.parcelId });
+  if (taxRows.length && parcel.ulpin) taxRows.unshift({ label: "ULPIN", value: parcel.ulpin });
+  const utilitySections = buildUtilitySections({
+    utilities: additionalLayers.utilities || {},
+    infrastructure: additionalLayers.infrastructure || [],
+    parcelId: parcel.parcelId,
+    ulpin: parcel.ulpin
+  });
+  const additionalSections = [
+    section("Property tax", taxRows),
+    ...utilitySections,
+    ...makeModuleSections(additionalLayers, [
+      ["valuation", "Valuation", valuationFields]
+    ])
+  ].filter(Boolean);
+  const utilityAvailability = [
+    { id: "electricity", label: "Electricity / power infrastructure", title: "Electricity and power infrastructure" },
+    { id: "water", label: "Water", title: "Water" },
+    { id: "sewer", label: "Sewer and drainage", title: "Sewer and drainage" },
+    { id: "roads", label: "Road access", title: "Road access" },
+    { id: "otherInfrastructure", label: "Other infrastructure", titles: ["Other utility information", "Other infrastructure"] }
+  ].map((item) => ({
+    id: item.id,
+    label: item.label,
+    configured: (item.titles || [item.title]).some((title) => utilitySections.some((entry) => entry.title === title))
+  }));
   const restrictionRows = makeRows(parcel.additionalLayers?.restrictionZones, restrictionZoneFields);
   const activeRestriction = restrictions.activeTransferRestriction;
   if (activeRestriction) {
@@ -613,7 +739,17 @@ export const getParcelLayers = (unifiedRecord = {}) => {
 
   const additionalAvailability = [
     { id: "propertyTax", label: "Property tax", status: moduleStatus("propertyTax") },
-    { id: "utilities", label: "Utilities and infrastructure", status: moduleStatus("utilities") },
+    {
+      id: "utilities",
+      label: "Utilities and infrastructure",
+      status: modules.utilities?.status === "restricted"
+        ? "restricted"
+        : modules.utilities?.status === "pending"
+          ? "pending"
+          : utilitySections.length
+            ? "available"
+            : "unavailable"
+    },
     { id: "valuation", label: "Valuation", status: hasMeaningfulModuleData(utilities.valuation) ? moduleStatus("utilities") : "unavailable" }
   ].map((item) => ({ ...item, configured: item.status !== "unavailable" }));
 
@@ -622,6 +758,7 @@ export const getParcelLayers = (unifiedRecord = {}) => {
     sectionsByTab,
     availability,
     additionalAvailability,
+    utilityAvailability,
     boundaryCoordinates,
     parcelInfo: getParcelInfo(unifiedRecord),
     planningInfo,

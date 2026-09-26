@@ -20,9 +20,11 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 
 ## 2. Current Development State & Active Git Branch
 
-* **Target Active Branch:** `national-dpi-security-refactor`
-* **STRICT RULE:** NEVER commit or push directly to `main` or `GIS-edit-1`. Work exclusively on `national-dpi-security-refactor`.
-* **Current Working Tree:** All changes for Steps 1 through 4 are staged/active on `national-dpi-security-refactor`.
+* **Target Active Branch:** `GIS-Branch-2` (GitHub display name requested: “GIS Branch 2”).
+* **Repository:** `MiraclesRidiculed/sih-round-1`, remote `origin`.
+* **Branch policy:** Continue this work on `GIS-Branch-2`; do not switch to or push these changes to `main` or another branch unless explicitly requested.
+* **Last committed/pushed baseline:** `f9d7240 feat: extend land stack governance workflows`.
+* **Current worktree:** Step 27 fiscal/utility UI and tests, plus this progress update, are the pending changes to commit and push to `origin/GIS-Branch-2`.
 * **Prerequisites:** MongoDB running locally on port 27017 (`mongodb://127.0.0.1:27017/karnataka_landchain`), Node.js v22+.
 
 ---
@@ -82,44 +84,34 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 
 ---
 
-## 4. Remaining Steps & Immediate Next Step
+## 4. Progress & Resume Context
 
-When resuming, execute the remaining steps in the following order:
+The requested implementation sequence is complete through **STEP 27**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
 
-### 🔜 STEP 5: Quiet, Authoritative UI Overhaul & De-cluttering
-- **Goal:** Eliminate visual noise, sensationalized hype terms, and invasive screen distractions.
-- **Actions:**
-  1. Retire the floating bottom-right dock (`client/src/components/LiveDemoDock.jsx`).
-  2. Move simulation and inter-agency triggers into a dedicated, authenticated **Department Operations Console** (`/operations`) accessible via the navigation header for authorized officials (`admin`, `revenue_officer`, `sro`, etc.).
-  3. Purge sensationalized terms across all components:
-     - Replace *"Radar Sweep"* / *"Orbital AI"* $\rightarrow$ *"Remote Sensing Change Detection"*.
-     - Replace *"Hard-Blocked"* / *"Instant Freeze"* $\rightarrow$ *"Statutory Transfer Restriction (Sec 52 Transfer of Property Act)"*.
-     - Replace *"Quantum Ledger"* $\rightarrow$ *"Tamper-Evident Cryptographic Audit Trail"*.
-  4. Standardize cards and tables on calm slate/navy borders and remove pulsating animations.
-  5. Test and verify build.
+### Completed scope
+- **Steps 1–4:** Repository baseline, backend authentication/personas, idempotent seed, frontend login/session integration.
+- **Steps 5–17:** Frontend authentication and route protection, backend RBAC, calm government UI language/style, RCCMS lifecycle and stay enforcement, centralized statutory restriction checks, true geometric subdivision, offline field-survey PWA, security audit, and regression verification. Do not assume every workflow is production-grade or legally authoritative; consult tests and implementation before claiming guarantees.
+- **Steps 19–24:** Leaflet-preserving ULPIN parcel search and selection, parcel information panel, three-layer/unified parcel view, citizen-facing parcel lookup, and role-specific officer parcel views using existing data and authorization projections.
+- **Steps 25–26:** Local prototype transaction tracking with RCCMS restriction awareness; planning/building information and a Leaflet overlay using existing parcel geometry. The overlay is not a separate authoritative zoning-boundary dataset.
+- **Step 27:** Parcel-panel property-tax and utilities/infrastructure sections. These are derived from existing local/demo records, remain linked to ULPIN, identify missing sources, and explicitly avoid presenting sample data or proximity as verified/live tax assessments or utility connections. Authentication/RCCMS were not changed for this step.
 
-### 🔜 STEP 6: National Federated DPI Architecture & Canonical Schema Harmonizer
-- **Goal:** Formalize the multi-state federation model honoring State subject rights (*Entry 18, List II*).
-- **Actions:**
-  1. Expand the Canonical Schema Harmonizer (`client/src/components/SchemaHarmonizerModal.jsx` and backend adapters) to demonstrate seamless translation between state systems (*Bhoomi*, *Tamil Nilam*, *UPR*, *Dharani*) into the National **ISO 19152 LADM** standard.
-  2. Implement an inter-state encumbrance lookup showing how a national bank or central agency queries clear title across state borders without displacing state databases.
+### Latest Step 27 files and behavior
+- `client/src/utils/parcelInfo.js`: Maps only present tax fields (including assessment/payment identifiers and record-provided update time); maps available electricity/power, water, sewer/drainage, roads, telecom, and infrastructure fields; does not infer an electricity connection from substation distance; exposes configured/unavailable utility categories.
+- `client/src/components/ParcelInfoPanel.jsx`: Adds local-demo disclaimers and per-category “Data source not configured” display when some utility categories exist.
+- `client/src/utils/parcelInfo.test.js`: Covers tax/utility mappings, ULPIN correlation, absent data, and avoiding fabricated connections.
+- `server/src/services/parcelCentricRecordService.test.js`: Confirms tax/utilities provenance is `local-demo`, non-authoritative, and absent infrastructure remains empty. The assembler itself already correlated existing data; no schema or API change was needed.
 
-### 🔜 STEP 7: Deep Statutory Features
-- **Goal:** Complete deep functional workflows that differentiate Land Stack.
-- **Actions:**
-  1. **Full RCCMS Dispute Lifecycle:** Support case filing $\rightarrow$ notice $\rightarrow$ interim injunction (stay order) $\rightarrow$ final decree/vacation, with automatic Section 52 statutory locks on SRO deed registration.
-  2. **Geometric Cadastral Subdivision (Form 11E):** True polygon coordinate midpoint splitting algorithm calculating valid child GeoJSON polygons, recomputed acreage, and issuing deterministic child ULPINs.
-  3. **PWA Offline Field Survey Mode:** Add `manifest.json` and service worker caching in `client/public/` with a password-unlocked, AES-GCM-encrypted IndexedDB survey sync queue.
+### Latest verification evidence
+- Client parcel tests: **16/16 passed**.
+- Server unified-record/projection tests: **16/16 passed**.
+- Client production build: **passed**.
+- `git diff --check` and JS syntax checks passed on the Step 27 implementation before the last test-only assertion adjustment; rerun lightweight checks if needed before further edits.
+- Do not claim a complete full-regression/security re-audit based solely on these targeted checks.
 
-### 🔜 STEP 8: Verification & Branch Commit
-- Run full suite tests (`testAuth.js`, `verifyPersonas.js`, `npm run build`).
-- Commit all changes:
-  ```bash
-  git add -A
-  git commit -m "feat(dpi): implement federated national architecture, jwt rbac security, and quiet govtech ui"
-  git push -u origin national-dpi-security-refactor
-  ```
-- **STRICT:** Do not push to `main` or `GIS-edit-1`.
+### Immediate resume action
+The Step 27 implementation and this file update must be committed and pushed to the existing branch `GIS-Branch-2`, not to a new branch. Inspect `git status` and the diff first, stage only intended files, run relevant checks if code has changed, then commit and push normally (no force push). The prior pushed baseline is `f9d7240`; preserve it and append a new commit. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
+
+If the push is already complete when this file is next read, inspect the branch and remote status before deciding whether any additional action is needed. The user’s requested same-branch target is `origin/GIS-Branch-2`.
 
 ---
 
