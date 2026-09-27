@@ -591,6 +591,7 @@ const ParcelDetailPage = () => {
 
       {/* 4. REMOTE SENSING CHANGE DETECTION TAB */}
       {activeTab === "ai" && (
+        <div className="space-y-5">
         <div className="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
             <div className="flex items-center gap-3">
@@ -630,8 +631,8 @@ const ParcelDetailPage = () => {
             </div>
 
             <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200">
-              <span className="font-bold text-amber-900 uppercase tracking-wider">Sample confidence</span>
-              <p className="mt-1 text-2xl font-black text-amber-950">{changeDetection?.confidencePercent != null ? `${changeDetection.confidencePercent}%` : "Not available"}</p>
+              <span className="font-bold text-amber-900 uppercase tracking-wider">Confidence</span>
+              <p className="mt-1 text-2xl font-black text-amber-950">Not calculated</p>
             </div>
 
             <div className="rounded-2xl bg-blue-50 p-4 border border-blue-200">
@@ -646,6 +647,59 @@ const ParcelDetailPage = () => {
                 .join(" · ")}
             </p>
           )}
+        </div>
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-[#0B2545]">Decision-support signals</h3>
+              <p className="mt-1 text-xs text-slate-600">
+                Deterministic rules over available application records; not a predictive ML model.
+              </p>
+            </div>
+            {parcel.unifiedRecord?.modules?.decisionSupport?.data?.generatedAt && (
+              <p className="text-xs text-slate-600">Report time: {parcel.unifiedRecord.modules.decisionSupport.data.generatedAt}</p>
+            )}
+          </div>
+          {parcel.unifiedRecord?.modules?.decisionSupport?.data ? (
+            <>
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                Decision support only. Signals may be incomplete or false positives and are not legal, ownership, registration, or enforcement decisions. Confidence is not calculated or validated.
+              </p>
+              {parcel.unifiedRecord.modules.decisionSupport.data.findings.length ? (
+                <ul className="mt-4 space-y-3">
+                  {parcel.unifiedRecord.modules.decisionSupport.data.findings.map((finding) => (
+                    <li key={finding.code} className="rounded-xl border border-slate-200 p-4">
+                      <h4 className="text-sm font-semibold text-slate-900">{finding.detected}</h4>
+                      <p className="mt-1 text-xs leading-5 text-slate-700">{finding.explanation}</p>
+                      <p className="mt-2 text-xs font-medium text-slate-600">
+                        Confidence: not calculated · Recorded: {finding.timestamp}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-slate-600">
+                        {finding.sourceData.map((source, index) => (
+                          <p key={`${finding.code}-${source.record}-${index}`}>
+                            <span className="font-semibold">{source.record}:</span>{" "}
+                            {Object.entries(source.fields)
+                              .map(([field, value]) => `${field}=${Array.isArray(value) ? value.join(", ") : value ?? "not recorded"}`)
+                              .join(" · ")}
+                          </p>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-slate-700">No configured decision-support rules were triggered by the available records.</p>
+              )}
+              <p className="mt-4 text-xs text-slate-500">
+                Source: {parcel.unifiedRecord.modules.decisionSupport.data.algorithm.name} · {parcel.unifiedRecord.modules.decisionSupport.data.generatedAt}
+              </p>
+            </>
+          ) : (
+            <p className="mt-4 text-sm text-slate-700">
+              Decision-support details are not available for this role or parcel.
+            </p>
+          )}
+        </section>
         </div>
       )}
 

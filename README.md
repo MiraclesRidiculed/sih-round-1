@@ -116,6 +116,7 @@ All endpoints require an active authenticated session (HttpOnly session cookie o
 | `GET /api/land/parcels/:ulpin/utilities` | Utilities and infrastructure; admin-only under the current demo policy. |
 | `GET /api/land/parcels/:ulpin/transactions` | Local prototype transaction applications, filtered by role. |
 | `GET /api/land/parcels/:ulpin/change-detection` | Parcel-linked simulated remote-sensing change report; imagery metadata is included only when recorded. |
+| `GET /api/land/parcels/:ulpin/decision-support` | Role-protected deterministic decision-support signals derived from local parcel records. |
 
 Successful responses use `{ "success": true, "data": ..., "meta": ... }`. Metadata includes API version, generation time, ULPIN correlation, access role, and source mode/authority; module responses also identify the module. Errors use `{ "success": false, "error": { "code": ..., "message": ... }, "meta": ... }`. Invalid ULPINs return `400`, missing parcels `404`, unauthenticated requests `401`, and unauthorized modules `403`. ULPIN path values must contain exactly 14 digits.
 
@@ -123,9 +124,15 @@ Run the focused tests with `npm --workspace server run test:interoperability`.
 
 ## Remote Sensing Change Detection (prototype)
 
-Parcel detail records expose a normalized `changeDetection` module in the unified parcel response and the interoperability endpoint above. Existing local/demo anomaly records are explicitly tagged `analysisMode: "simulated"` and `source.mode: "simulated"`; the source disclaimer states that no real satellite imagery or provider is connected. Detection dates, confidence, change area, and allowlisted imagery metadata are shown only when present in local records—missing values are not filled with sample defaults.
+Parcel detail records expose a normalized `changeDetection` module in the unified parcel response and the interoperability endpoint above. Existing local/demo anomaly records are explicitly tagged `analysisMode: "simulated"` and `source.mode: "simulated"`; the source disclaimer states that no real satellite imagery or provider is connected. Detection dates, change area, and allowlisted imagery metadata are shown only when present in local records. Legacy confidence-like fields are not treated as calculated or validated scores; confidence is explicitly shown as not calculated.
 
 On the parcel GIS map, enable **Remote Sensing Change** to show a clickable marker for a parcel with a recorded sample change. Its popup opens the change information and identifies the affected parcel and ULPIN. The marker identifies the parcel only, not an inferred pixel-level change location.
+
+## AI/ML decision-support prototype (Step 31)
+
+The parcel detail report and `GET /api/land/parcels/:ulpin/decision-support` expose deterministic, explainable rules—not a trained or predictive ML model. Rules flag repeated normalized holder names, differences from the latest recorded ownership-event holder-name set, pending local transaction applications alongside active restriction records, and existing simulated spatial-change flags. Each signal includes an explanation, source record/field summary, timestamp, and explicit uncalculated-confidence status. Personal holder names and restricted court case identifiers are not included in signal source summaries.
+
+The report uses records already stored by the application (parcel holders, ownership events, local transaction workflows, parcel/RCCMS restriction fields, and simulated change-detection samples). Predictive accuracy and calibrated confidence have not been measured. Signals can be incomplete or false positives and are for authorized staff review only; they are not legal, ownership, registration, or enforcement decisions. Citizens cannot access the report. No external AI service or satellite source is connected.
 
 ## Land governance decision dashboard
 

@@ -86,7 +86,7 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 
 ## 4. Progress & Resume Context
 
-The requested implementation sequence is complete through **STEP 30**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
+The requested implementation sequence is complete through **STEP 31**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
 
 ### Completed scope
 - **Steps 1–4:** Repository baseline, backend authentication/personas, idempotent seed, frontend login/session integration.
@@ -97,6 +97,7 @@ The requested implementation sequence is complete through **STEP 30**. Continue 
 - **Step 28:** Read-only local-prototype interoperability API at `/api/land/parcels/:ulpin`, with module endpoints for cadastral, rights, registration, planning, encumbrances, restrictions, building permission, land use, property tax, utilities, and transactions. Uses existing record assembly and role-specific citizen/officer projections, explicit per-module RBAC, standard success/error envelopes, source and ULPIN metadata, and README API documentation. This does not connect to external government systems.
 - **Step 29:** Prototype Remote Sensing Change Detection normalized from local parcel sample records and exposed as a role-safe `changeDetection` unified-record module and `/api/land/parcels/:ulpin/change-detection`. The GIS map shows a clickable parcel-level marker and popup with recorded detection details; the details panel and modal clearly label analysis simulated, avoid default/fabricated confidence or imagery metadata, and state that no real satellite provider is connected. Marker identifies only the parcel, not an exact change location.
 - **Step 30:** Role-aware Land Governance Decision Dashboard using Parcel, RCCMS, and transaction records already in the application. Counts and distributions are derived from persisted values, role-filtered, and presented as simple bars/cards. Does not use hardcoded/fallback statistics; citizen access remains parcel lookup. Dashboard metrics are explicitly local application summaries, not authoritative departmental totals.
+- **Step 31:** Role-protected parcel decision-support report and `/api/land/parcels/:ulpin/decision-support` module. Uses deterministic rules for duplicate normalized holder names, differences from the latest recorded ownership-event holder-name set, pending local transactions alongside active restrictions, and existing simulated spatial-change flags. Findings include explanations, source summaries, timestamps, and explicitly uncalculated confidence; owner names and restricted court case identifiers are not returned in finding sources. This is not a predictive ML model, has no measured predictive accuracy, and is not a legal decision.
 
 ### Latest Step 27 files and behavior
 - `client/src/utils/parcelInfo.js`: Maps only present tax fields (including assessment/payment identifiers and record-provided update time); maps available electricity/power, water, sewer/drainage, roads, telecom, and infrastructure fields; does not infer an electricity connection from substation distance; exposes configured/unavailable utility categories.
@@ -126,8 +127,13 @@ The requested implementation sequence is complete through **STEP 30**. Continue 
 - Dashboard controller tests verify staff responses omit detailed parcel records and admin responses retain the authorized parcel directory.
 - Latest verification: full server suite **43/43 passed**; client parcel/search tests **16/16 passed**; offline-survey tests **4/4 passed**; production client build passed.
 
+### Step 31 verification
+- Decision-support service tests cover triggered rules, explanations/source summaries, timestamps, explicit uncalculated confidence, no-signal reports, and exclusion of holder names, court case identifiers, and legacy confidence-like values.
+- Parcel projections and interoperability API tests cover institutional-role visibility, citizen denial, and `rules-based` source metadata. Remote-sensing projections/UI no longer treat legacy confidence-like values as calculated scores.
+- Latest verification: full server suite **45/45 passed**; client parcel/search tests **16/16 passed**; offline-survey tests **4/4 passed**; production client build passed; `git diff --check` passed.
+
 ### Immediate resume action
-Step 27 was committed and pushed as `b8a594f`; Step 28 added the local-prototype interoperability API, Step 29 added prototype change detection, and Step 30 added role-aware governance summaries as described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 30 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
+Step 27 was committed and pushed as `b8a594f`; Step 28 added the local-prototype interoperability API, Step 29 added prototype change detection, Step 30 added role-aware governance summaries, and Step 31 added deterministic decision-support signals as described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 31 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
 
 ---
 

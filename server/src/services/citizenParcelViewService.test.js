@@ -145,12 +145,22 @@ const unifiedRecord = {
         analysisMode: "simulated",
         detectedChange: "Potential sample change",
         detectionDate: "2026-08-20",
-        confidencePercent: 94,
+        confidencePercent: null,
+        confidenceStatus: "not-calculated",
         affectedParcel: { parcelId: sourceParcel.parcelId, ulpin: sourceParcel.ulpin },
         sourceImagery: null,
         source: { mode: "simulated", authoritative: false }
       },
       source: { mode: "simulated", authoritative: false }
+    },
+    decisionSupport: {
+      status: "available",
+      data: {
+        status: "signals-found",
+        findings: [{ code: "PRIVATE_SIGNAL" }],
+        limitation: "Decision support only."
+      },
+      source: { mode: "rules-based", authoritative: false }
     }
   }
 };
@@ -185,6 +195,8 @@ test("citizen detail exposes permitted statuses and land information, not admini
   });
   assert.equal(result.unifiedRecord.modules.propertyTax.status, "unavailable");
   assert.equal(result.unifiedRecord.modules.changeDetection.data.analysisMode, "simulated");
+  assert.equal(result.unifiedRecord.modules.decisionSupport.status, "restricted");
+  assert.equal(result.unifiedRecord.modules.decisionSupport.data, null);
   assert.deepEqual(
     result.unifiedRecord.modules.transactions.data.applications.map((application) => application.id),
     ["application-citizen-1"]
@@ -221,11 +233,11 @@ test("citizen response preserves unavailable status when a dataset has no config
 
 test("officer parcel views expose only each role's application demo modules", () => {
   const roleModules = {
-    revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection"],
-    surveyor: ["cadastral", "restrictions", "changeDetection"],
-    sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection"],
-    court: ["cadastral", "restrictions", "changeDetection"],
-    bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection"]
+    revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection", "decisionSupport"],
+    surveyor: ["cadastral", "restrictions", "changeDetection", "decisionSupport"],
+    sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection", "decisionSupport"],
+    court: ["cadastral", "restrictions", "changeDetection", "decisionSupport"],
+    bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection", "decisionSupport"]
   };
 
   for (const [role, permittedModules] of Object.entries(roleModules)) {
@@ -242,6 +254,11 @@ test("officer parcel views expose only each role's application demo modules", ()
         assert.equal(module.source, null);
       }
     }
+    assert.equal(result.unifiedRecord.modules.decisionSupport.data.status, "signals-found");
+    assert.deepEqual(
+      result.unifiedRecord.modules.decisionSupport.data.findings.map(({ code }) => code),
+      ["PRIVATE_SIGNAL"]
+    );
     assert.equal("currentOwners" in result, false);
     assert.equal("qr" in result, false);
     assert.equal("documents" in result, false);

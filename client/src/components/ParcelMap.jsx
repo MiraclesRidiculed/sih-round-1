@@ -554,7 +554,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
                 </p>
                 <p><strong>Detected change:</strong> {changeDetection.detectedChange || "Change recorded; classification unavailable"}</p>
                 {changeDetection.detectionDate && <p><strong>Detection / recorded pass date:</strong> {changeDetection.detectionDate}</p>}
-                {changeDetection.confidencePercent !== null && <p><strong>Sample confidence:</strong> {changeDetection.confidencePercent}%</p>}
+                <p><strong>Confidence:</strong> Not calculated</p>
                 {changeDetection.changeAreaSqM !== null && <p><strong>Recorded change area:</strong> {changeDetection.changeAreaSqM} m²</p>}
                 <p><strong>Affected parcel:</strong> {changeDetection.affectedParcel?.parcelId || parcel?.parcelId}</p>
                 <p><strong>ULPIN:</strong> {changeDetection.affectedParcel?.ulpin || parcel?.ulpin || "Unassigned"}</p>

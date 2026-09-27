@@ -4,6 +4,7 @@ import {
   isParcelTransaction
 } from "./parcelTransactionService.js";
 import { createRemoteSensingChangeDetection } from "./remoteSensingChangeDetectionService.js";
+import { buildDecisionSupportReport } from "./decisionSupportService.js";
 
 const hasData = (value) => {
   if (value === undefined || value === null) return false;
@@ -258,6 +259,16 @@ export const assembleParcelCentricRecord = ({
       source: {
         systemName: null,
         mode: "simulated",
+        authoritative: false,
+        lastSynchronizedAt: null
+      }
+    },
+    decisionSupport: {
+      status: "available",
+      data: buildDecisionSupportReport({ parcel, ownershipHistory, rccmsCases }),
+      source: {
+        systemName: "Land Stack deterministic rules",
+        mode: "rules-based",
         authoritative: false,
         lastSynchronizedAt: null
       }

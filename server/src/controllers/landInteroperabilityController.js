@@ -32,7 +32,7 @@ const loadProjectedRecord = async (parcel, user) => {
 
   const [documents, ownershipHistory, rccmsCases, surveySubmissions] = await Promise.all([
     isAdmin ? DocumentRecord.find({ parcel: parcel._id }).sort({ createdAt: 1 }).lean() : [],
-    isAdmin || user.role === "revenue_officer"
+    user.role !== "citizen"
       ? OwnershipEvent.find({ parcel: parcel._id }).sort({ eventDate: 1 }).lean()
       : [],
     rccmsCasesQuery.lean(),
@@ -106,7 +106,9 @@ export const getInteroperabilityParcelModule = asyncHandler(async (req, res) => 
   const moduleSource = {
     ...(module.source || {}),
     systemName: module.source?.systemName || null,
-    mode: module.source?.mode === "simulated" ? "simulated" : "local-demo",
+    mode: ["simulated", "rules-based"].includes(module.source?.mode)
+      ? module.source.mode
+      : "local-demo",
     authoritative: false,
     realTime: false,
     lastSynchronizedAt: module.source?.lastSynchronizedAt || null,

@@ -47,11 +47,8 @@ export const createRemoteSensingChangeDetection = (parcel) => {
       : null,
     detectionDate: detection.detectionDate || detection.lastSatellitePassDate || null,
     referenceDate: detection.historicalReferenceDate || null,
-    confidencePercent: Number.isFinite(detection.confidenceScorePercent) &&
-      detection.confidenceScorePercent >= 0 &&
-      detection.confidenceScorePercent <= 100
-      ? detection.confidenceScorePercent
-      : null,
+    confidencePercent: null,
+    confidenceStatus: "not-calculated",
     affectedParcel: {
       parcelId: parcel.parcelId || null,
       ulpin: parcel.ulpin || null,

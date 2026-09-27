@@ -4,7 +4,7 @@ import { Session } from "../models/Session.js";
 
 export const ROLE_PERMISSIONS = Object.freeze({
   admin: ["all protected operations"],
-  revenue_officer: ["workflow", "subdivision approval", "AI inspection", "event simulation"],
+  revenue_officer: ["workflow", "subdivision approval", "prototype field review", "event simulation"],
   surveyor: ["workflow", "subdivision creation", "event simulation"],
   sro: ["workflow", "SRO fast-track deed", "event simulation"],
   court: ["workflow", "court injunctions"],

@@ -193,7 +193,7 @@ export const getParcelDetail = asyncHandler(async (req, res) => {
   if (!canViewCourtRecords) rccmsCasesQuery.select("parcelId caseIdentifier currentStatus updatedAt");
   const [documents, ownershipHistory, verification, rccmsCases, surveySubmissions] = await Promise.all([
     isAdmin ? DocumentRecord.find({ parcel: parcel._id }).sort({ createdAt: 1 }).lean() : [],
-    isAdmin || req.user?.role === "revenue_officer"
+    !isCitizen
       ? OwnershipEvent.find({ parcel: parcel._id }).sort({ eventDate: 1 }).lean()
       : [],
     isAdmin ? buildParcelVerificationReport(parcel) : null,
@@ -738,8 +738,10 @@ export const recommendAiInspection = asyncHandler(async (req, res) => {
   eventBus.broadcast("AI_RECOMMENDATION_CREATED", {
     parcelId: parcel.parcelId,
     ulpin: parcel.ulpin,
-    confidenceScorePercent: parcel.aiGeospatial?.satelliteChangeDetection?.confidenceScorePercent || 94,
-    summary: `Prototype change-detection review recorded for parcel ${parcel.parcelId}`
+    summary: `Prototype field review request recorded for parcel ${parcel.parcelId}`,
+    source: "existing simulated change-detection record",
+    mode: "decision-support",
+    authoritative: false
   });
 
   res.json({

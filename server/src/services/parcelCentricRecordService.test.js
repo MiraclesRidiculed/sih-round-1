@@ -74,6 +74,9 @@ test("correlates existing modules and provenance under the parcel ULPIN", () => 
   assert.equal(record.modules.changeDetection.data.analysisMode, "simulated");
   assert.equal(record.modules.changeDetection.data.sourceImagery, null);
   assert.equal(record.modules.changeDetection.data.source.authoritative, false);
+  assert.equal(record.modules.decisionSupport.data.status, "no-rule-signals");
+  assert.equal(record.modules.decisionSupport.data.parcel.ulpin, parcel.ulpin);
+  assert.equal(record.modules.decisionSupport.data.algorithm.predictiveModel, false);
   assert.equal(record.modules.ror.source.systemName, "Tamil Nilam");
   assert.equal(record.modules.ror.source.mode, "local-demo");
   assert.equal(record.synchronization.realTime, false);
@@ -125,7 +128,8 @@ test("normalizes sample change detection data without inventing imagery metadata
   assert.equal(change.analysisMode, "simulated");
   assert.equal(change.detectedChange, "Potential boundary change");
   assert.equal(change.detectionDate, "2026-08-18");
-  assert.equal(change.confidencePercent, 94);
+  assert.equal(change.confidencePercent, null);
+  assert.equal(change.confidenceStatus, "not-calculated");
   assert.deepEqual(change.affectedParcel, {
     parcelId: parcel.parcelId,
     ulpin: parcel.ulpin,

@@ -51,10 +51,8 @@ const RemoteSensingChangeDetectionModal = ({ parcel, onClose }) => {
               <dd className="mt-1 font-semibold text-slate-950">{change.detectionDate || "Not available"}</dd>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
-              <dt className="text-xs font-semibold uppercase text-slate-600">Sample confidence</dt>
-              <dd className="mt-1 font-semibold text-slate-950">
-                {change.confidencePercent != null ? `${change.confidencePercent}%` : "Not available"}
-              </dd>
+              <dt className="text-xs font-semibold uppercase text-slate-600">Confidence</dt>
+              <dd className="mt-1 font-semibold text-slate-950">Not calculated</dd>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
               <dt className="text-xs font-semibold uppercase text-slate-600">Recorded change area</dt>

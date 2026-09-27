@@ -138,6 +138,30 @@ test("module endpoint enforces role permissions and returns the selected module"
   assert.equal(changeResult.body.data.module.data.analysisMode, "simulated");
   assert.equal(changeResult.body.data.module.data.affectedParcel.ulpin, parcel.ulpin);
   assert.equal(changeResult.body.meta.source.mode, "simulated");
+
+  const decisionParcel = {
+    ...parcel,
+    currentOwners: [{ name: "Owner A" }, { name: "Owner A" }],
+    disputeRecord: {},
+    departmentalWorkflows: [],
+    aiGeospatial: {}
+  };
+  setParcel(decisionParcel);
+  const citizenDecisionResult = response();
+  await invoke(getInteroperabilityParcelModule, {
+    params: { ulpin: parcel.ulpin, module: "decision-support" },
+    user: { id: "citizen-1", role: "citizen" }
+  }, citizenDecisionResult);
+  assert.equal(citizenDecisionResult.statusCode, 403);
+
+  const decisionResult = response();
+  await invoke(getInteroperabilityParcelModule, {
+    params: { ulpin: parcel.ulpin, module: "decision-support" },
+    user: { id: "officer-1", role: "revenue_officer" }
+  }, decisionResult);
+  assert.equal(decisionResult.statusCode, 200);
+  assert.equal(decisionResult.body.data.module.data.findings[0].code, "POSSIBLE_DUPLICATE_HOLDER_ENTRY");
+  assert.equal(decisionResult.body.meta.source.mode, "rules-based");
 });
 
 test("validates ULPINs and uses the standard not-found envelope", async (t) => {

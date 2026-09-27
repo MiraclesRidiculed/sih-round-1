@@ -31,15 +31,16 @@ const moduleNames = [
   "propertyTax",
   "utilities",
   "transactions",
-  "changeDetection"
+  "changeDetection",
+  "decisionSupport"
 ];
 
 const OFFICER_MODULE_ACCESS = Object.freeze({
-  revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection"],
-  surveyor: ["cadastral", "restrictions", "changeDetection"],
-  sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection"],
-  court: ["cadastral", "restrictions", "changeDetection"],
-  bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection"]
+  revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection", "decisionSupport"],
+  surveyor: ["cadastral", "restrictions", "changeDetection", "decisionSupport"],
+  sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection", "decisionSupport"],
+  court: ["cadastral", "restrictions", "changeDetection", "decisionSupport"],
+  bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection", "decisionSupport"]
 });
 
 const projectOfficerModule = (name, module, role, actorId) => {
@@ -236,6 +237,7 @@ const projectOfficerModule = (name, module, role, actorId) => {
   if (name === "changeDetection") {
     return data;
   }
+  if (name === "decisionSupport") return data;
   return null;
 };
 
@@ -268,6 +270,9 @@ export const toOfficerParcelDetail = (parcel, unifiedRecord, role, actorId) => {
     if (name === "changeDetection") {
       const data = projectOfficerModule(name, module, role, actorId);
       return [name, publicModule(module, data)];
+    }
+    if (name === "decisionSupport") {
+      return [name, publicModule(module, projectOfficerModule(name, module, role, actorId))];
     }
     const data = projectOfficerModule(name, module, role, actorId);
     return [name, publicModule(module, data)];
@@ -458,6 +463,11 @@ export const toCitizenParcelDetail = (parcel, unifiedRecord, actorId) => {
     changeDetection: publicModule(
       modules.changeDetection,
       projectOfficerModule("changeDetection", modules.changeDetection, "citizen", actorId)
+    ),
+    decisionSupport: publicModule(
+      modules.decisionSupport,
+      null,
+      true
     )
   };
 

@@ -13,16 +13,17 @@ export const INTEROPERABILITY_MODULES = Object.freeze({
   "property-tax": "propertyTax",
   utilities: "utilities",
   transactions: "transactions",
-  "change-detection": "changeDetection"
+  "change-detection": "changeDetection",
+  "decision-support": "decisionSupport"
 });
 
 const ROLE_MODULE_ACCESS = Object.freeze({
   admin: Object.keys(INTEROPERABILITY_MODULES),
-  revenue_officer: ["cadastral", "rights", "land-use", "restrictions", "change-detection"],
-  surveyor: ["cadastral", "restrictions", "change-detection"],
-  sro: ["cadastral", "registration", "encumbrances", "restrictions", "transactions", "change-detection"],
-  court: ["cadastral", "restrictions", "change-detection"],
-  bank: ["cadastral", "rights", "encumbrances", "restrictions", "change-detection"],
+  revenue_officer: ["cadastral", "rights", "land-use", "restrictions", "change-detection", "decision-support"],
+  surveyor: ["cadastral", "restrictions", "change-detection", "decision-support"],
+  sro: ["cadastral", "registration", "encumbrances", "restrictions", "transactions", "change-detection", "decision-support"],
+  court: ["cadastral", "restrictions", "change-detection", "decision-support"],
+  bank: ["cadastral", "rights", "encumbrances", "restrictions", "change-detection", "decision-support"],
   citizen: ["cadastral", "rights", "registration", "planning", "building-permission", "encumbrances", "land-use", "restrictions", "transactions", "change-detection"]
 });
 
