@@ -94,3 +94,28 @@ Switch between 4 personas via the top-right role selector:
    - **Frontend Web Portal:** [http://localhost:5173](http://localhost:5173)
    - **Backend API:** [http://localhost:4000/api](http://localhost:4000/api)
    - **Standard Technical Document (STD):** [http://localhost:5173/std](http://localhost:5173/std) or see [Land_Stack_Standard_Technical_Document.md](Land_Stack_Standard_Technical_Document.md)
+
+## Land Stack interoperability API (local prototype)
+
+The read-only interoperability API correlates the repository's existing parcel records by ULPIN. It reads local Land Stack/MongoDB and demonstration data only; it does **not** connect to Tamil Nilam, TNREGINET, RCCMS, planning authorities, banks, or other government departmental systems. Its records are not authoritative or real-time.
+
+All endpoints require an active authenticated session (HttpOnly session cookie or supported bearer token). RBAC applies to the full parcel response and individual modules. A module the caller may not access returns `403 MODULE_ACCESS_RESTRICTED`; fields are projected according to the existing citizen/officer views. Admin access includes additional local record details. These demo role permissions do not establish legal authority.
+
+| Method and path | Description |
+| --- | --- |
+| `GET /api/land/parcels/:ulpin` | Parcel-centric response with module status, source provenance, correlation, and role-specific projections. |
+| `GET /api/land/parcels/:ulpin/cadastral` | Cadastral and survey geometry data. |
+| `GET /api/land/parcels/:ulpin/rights` | Existing RoR/rights data (`ror` module). |
+| `GET /api/land/parcels/:ulpin/registration` | Registration module. |
+| `GET /api/land/parcels/:ulpin/planning` | Planning/zoning module. |
+| `GET /api/land/parcels/:ulpin/encumbrances` | Encumbrance module. |
+| `GET /api/land/parcels/:ulpin/restrictions` | Restriction module, projected for the caller's role. |
+| `GET /api/land/parcels/:ulpin/building-permission` | Building permissions, when present in local records. |
+| `GET /api/land/parcels/:ulpin/land-use` | Recorded land-use information. |
+| `GET /api/land/parcels/:ulpin/property-tax` | Property-tax data; admin-only under the current demo policy. |
+| `GET /api/land/parcels/:ulpin/utilities` | Utilities and infrastructure; admin-only under the current demo policy. |
+| `GET /api/land/parcels/:ulpin/transactions` | Local prototype transaction applications, filtered by role. |
+
+Successful responses use `{ "success": true, "data": ..., "meta": ... }`. Metadata includes API version, generation time, ULPIN correlation, access role, and source mode/authority; module responses also identify the module. Errors use `{ "success": false, "error": { "code": ..., "message": ... }, "meta": ... }`. Invalid ULPINs return `400`, missing parcels `404`, unauthenticated requests `401`, and unauthorized modules `403`. ULPIN path values must contain exactly 14 digits.
+
+Run the focused tests with `npm --workspace server run test:interoperability`.

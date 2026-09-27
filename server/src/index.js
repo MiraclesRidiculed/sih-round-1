@@ -10,6 +10,7 @@ import authRoutes from "./routes/authRoutes.js";
 import courtRoutes from "./routes/courtRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import landExchangeRoutes from "./routes/landExchangeRoutes.js";
+import landInteroperabilityRoutes from "./routes/landInteroperabilityRoutes.js";
 import parcelRoutes from "./routes/parcelRoutes.js";
 import streamRoutes from "./routes/streamRoutes.js";
 import verificationRoutes from "./routes/verificationRoutes.js";
@@ -46,6 +47,7 @@ app.use("/api/court", courtRoutes);
 app.use("/api/stream", streamRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/exchange", landExchangeRoutes);
+app.use("/api/land", landInteroperabilityRoutes);
 app.use("/api/parcels", parcelRoutes);
 app.use("/api/verification", verificationRoutes);
 

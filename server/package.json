@@ -7,6 +7,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "seed": "node src/scripts/seedDemoData.js",
+    "test:interoperability": "node --test src/services/landInteroperabilityService.test.js src/controllers/landInteroperabilityController.test.js",
     "test:unified-parcel-record": "node --test src/services/parcelCentricRecordService.test.js src/services/citizenParcelViewService.test.js src/services/parcelTransactionService.test.js"
   },
   "dependencies": {
