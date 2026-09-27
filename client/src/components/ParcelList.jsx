@@ -27,7 +27,7 @@ const ParcelList = ({ parcels = [], title }) => (
 
     <div className="grid gap-5 lg:grid-cols-2">
       {parcels.map((parcel) => {
-        const hasAiAlert = Boolean(parcel.aiGeospatial?.satelliteChangeDetection?.anomalyDetected);
+        const hasSampleChange = Boolean(parcel.aiGeospatial?.satelliteChangeDetection?.anomalyDetected);
         const hasMortgage = Boolean(parcel.essentialLayers?.encumbrance?.hasMortgage);
         const isCourtLocked = Boolean(parcel.disputeRecord?.transactionLock || parcel.essentialLayers?.ror?.revenueCourtDispute);
         const hasSubdivision = Boolean(parcel.subdivisionData?.isSubdivided);
@@ -66,10 +66,10 @@ const ParcelList = ({ parcels = [], title }) => (
                     Court Stay Active
                   </span>
                 )}
-                {hasAiAlert && !isCourtLocked && (
+                {hasSampleChange && !isCourtLocked && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
                     <Zap size={10} />
-                    AI Alert
+                    Sample change
                   </span>
                 )}
               </div>

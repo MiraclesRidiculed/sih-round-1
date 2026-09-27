@@ -69,11 +69,13 @@ const invoke = async (handler, req, res) => {
 };
 
 const mockLookup = (t, value) => {
-  t.mock.method(Parcel, "findOne", () => ({ lean: async () => value }));
+  let result = value;
+  t.mock.method(Parcel, "findOne", () => ({ lean: async () => result }));
   t.mock.method(RccmsCase, "find", () => mockQuery([]));
   t.mock.method(DocumentRecord, "find", () => mockQuery([]));
   t.mock.method(OwnershipEvent, "find", () => mockQuery([]));
   t.mock.method(FieldSurveySubmission, "find", () => mockQuery([]));
+  return (next) => { result = next; };
 };
 
 test("ULPIN parcel endpoint returns the citizen projection, metadata, and no private owner data", async (t) => {
@@ -98,7 +100,7 @@ test("ULPIN parcel endpoint returns the citizen projection, metadata, and no pri
 });
 
 test("module endpoint enforces role permissions and returns the selected module", async (t) => {
-  mockLookup(t, parcel);
+  const setParcel = mockLookup(t, parcel);
   const denied = response();
   await invoke(getInteroperabilityParcelModule, {
     params: { ulpin: parcel.ulpin, module: "property-tax" },
@@ -115,6 +117,27 @@ test("module endpoint enforces role permissions and returns the selected module"
   assert.equal(permitted.statusCode, 200);
   assert.equal(permitted.body.data.module.data.propertyTaxId, "TAX-PRIVATE");
   assert.equal(permitted.body.meta.module, "property-tax");
+
+  const changeParcel = {
+    ...parcel,
+    aiGeospatial: {
+      satelliteChangeDetection: {
+        anomalyDetected: true,
+        anomalyType: "Sample change",
+        lastSatellitePassDate: "2026-08-18"
+      }
+    }
+  };
+  setParcel(changeParcel);
+  const changeResult = response();
+  await invoke(getInteroperabilityParcelModule, {
+    params: { ulpin: parcel.ulpin, module: "change-detection" },
+    user: { id: "citizen-1", role: "citizen" }
+  }, changeResult);
+  assert.equal(changeResult.statusCode, 200);
+  assert.equal(changeResult.body.data.module.data.analysisMode, "simulated");
+  assert.equal(changeResult.body.data.module.data.affectedParcel.ulpin, parcel.ulpin);
+  assert.equal(changeResult.body.meta.source.mode, "simulated");
 });
 
 test("validates ULPINs and uses the standard not-found envelope", async (t) => {

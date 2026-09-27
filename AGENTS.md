@@ -23,8 +23,8 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 * **Target Active Branch:** `GIS-Branch-2` (GitHub display name requested: “GIS Branch 2”).
 * **Repository:** `MiraclesRidiculed/sih-round-1`, remote `origin`.
 * **Branch policy:** Continue this work on `GIS-Branch-2`; do not switch to or push these changes to `main` or another branch unless explicitly requested.
-* **Last committed/pushed baseline:** `b8a594f feat: add parcel tax and utility layers` (includes Step 27, tests, and this progress update; pushed to `origin/GIS-Branch-2`).
-* **Current worktree:** Clean after the Step 27 commit and push.
+* **Step 28 baseline:** `f1a33a6 feat: add land interoperability API`, pushed to `origin/GIS-Branch-2`; Step 29 follows on this branch.
+* **Current worktree:** Step 29 implementation is verified on `GIS-Branch-2`; use `git status` and history for current persistence state.
 * **Prerequisites:** MongoDB running locally on port 27017 (`mongodb://127.0.0.1:27017/karnataka_landchain`), Node.js v22+.
 
 ---
@@ -86,7 +86,7 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 
 ## 4. Progress & Resume Context
 
-The requested implementation sequence is complete through **STEP 28**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
+The requested implementation sequence is complete through **STEP 29**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
 
 ### Completed scope
 - **Steps 1–4:** Repository baseline, backend authentication/personas, idempotent seed, frontend login/session integration.
@@ -95,6 +95,7 @@ The requested implementation sequence is complete through **STEP 28**. Continue 
 - **Steps 25–26:** Local prototype transaction tracking with RCCMS restriction awareness; planning/building information and a Leaflet overlay using existing parcel geometry. The overlay is not a separate authoritative zoning-boundary dataset.
 - **Step 27:** Parcel-panel property-tax and utilities/infrastructure sections. These are derived from existing local/demo records, remain linked to ULPIN, identify missing sources, and explicitly avoid presenting sample data or proximity as verified/live tax assessments or utility connections. Authentication/RCCMS were not changed for this step.
 - **Step 28:** Read-only local-prototype interoperability API at `/api/land/parcels/:ulpin`, with module endpoints for cadastral, rights, registration, planning, encumbrances, restrictions, building permission, land use, property tax, utilities, and transactions. Uses existing record assembly and role-specific citizen/officer projections, explicit per-module RBAC, standard success/error envelopes, source and ULPIN metadata, and README API documentation. This does not connect to external government systems.
+- **Step 29:** Prototype Remote Sensing Change Detection normalized from local parcel sample records and exposed as a role-safe `changeDetection` unified-record module and `/api/land/parcels/:ulpin/change-detection`. The GIS map shows a clickable parcel-level marker and popup with recorded detection details; the details panel and modal clearly label analysis simulated, avoid default/fabricated confidence or imagery metadata, and state that no real satellite provider is connected. Marker identifies only the parcel, not an exact change location.
 
 ### Latest Step 27 files and behavior
 - `client/src/utils/parcelInfo.js`: Maps only present tax fields (including assessment/payment identifiers and record-provided update time); maps available electricity/power, water, sewer/drainage, roads, telecom, and infrastructure fields; does not infer an electricity connection from substation distance; exposes configured/unavailable utility categories.
@@ -114,8 +115,13 @@ The requested implementation sequence is complete through **STEP 28**. Continue 
 - API tests cover response/error envelopes, module mapping and role policy, citizen field projection, restricted data access, ULPIN validation, and parcel-not-found handling.
 - Latest run: interoperability tests **6/6 passed**; authentication, citizen/officer projection, and unified parcel-record regressions **22/22 passed**.
 
+### Step 29 verification
+- Normalized report tests cover parcel/ULPIN association, simulated source status, missing imagery metadata, and allowlisted recorded imagery fields.
+- Interoperability API test covers role-authorized change-detection module retrieval.
+- Latest verification: full server suite **38/38 passed**; client parcel-search/info tests **16/16 passed**; offline-survey tests **4/4 passed**; production client build passed.
+
 ### Immediate resume action
-Step 27 was committed and pushed as `b8a594f`; Step 28 adds the local-prototype interoperability API described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 28 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
+Step 27 was committed and pushed as `b8a594f`; Step 28 added the local-prototype interoperability API and Step 29 added prototype change detection as described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 29 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
 
 ---
 

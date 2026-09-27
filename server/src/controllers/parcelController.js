@@ -713,7 +713,7 @@ export const releaseBankLien = asyncHandler(async (req, res) => {
 
 export const recommendAiInspection = asyncHandler(async (req, res) => {
   const { parcelId } = req.params;
-  const { inspectionReason = "AI Satellite Change Detection flagged 142 sq.m unauthorized footprint expansion into buffer zone" } = req.body;
+  const { inspectionReason = "Prototype remote-sensing change sample requires field review" } = req.body;
 
   const parcel = await Parcel.findOne({ parcelId });
   if (!parcel) {
@@ -725,7 +725,7 @@ export const recommendAiInspection = asyncHandler(async (req, res) => {
     department: "Revenue Inspection Cell & Town Planning",
     title: "Field Encroachment Inspection Task Scheduled",
     status: "Inspection Assigned to VAO",
-    applicant: "AI Geospatial Surveillance Radar",
+    applicant: "Land Stack prototype change-detection module",
     initiatedAt: new Date().toISOString(),
     completedAt: null,
     remarks: `${inspectionReason}. Physical field verification with GNSS rover scheduled.`,
@@ -739,7 +739,7 @@ export const recommendAiInspection = asyncHandler(async (req, res) => {
     parcelId: parcel.parcelId,
     ulpin: parcel.ulpin,
     confidenceScorePercent: parcel.aiGeospatial?.satelliteChangeDetection?.confidenceScorePercent || 94,
-    summary: `Field Inspection task scheduled for ${parcel.parcelId} based on AI satellite alert`
+    summary: `Prototype change-detection review recorded for parcel ${parcel.parcelId}`
   });
 
   res.json({

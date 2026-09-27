@@ -46,7 +46,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useLiveEvents } from "../context/LiveEventContext";
-import BiTemporalSatelliteModal from "../components/BiTemporalSatelliteModal";
+import RemoteSensingChangeDetectionModal from "../components/RemoteSensingChangeDetectionModal";
 import BlockedTransactionModal from "../components/BlockedTransactionModal";
 import CadastralSubdivisionModal from "../components/CadastralSubdivisionModal";
 import DocumentPanel from "../components/DocumentPanel";
@@ -82,6 +82,7 @@ const ParcelDetailPage = () => {
   const { refreshKey } = useLiveEvents();
 
   const [parcel, setParcel] = useState(null);
+  const changeDetection = parcel?.unifiedRecord?.modules?.changeDetection?.data;
   const citizenPanelParcelId = useRef(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -94,7 +95,7 @@ const ParcelDetailPage = () => {
   const [searchFocusRequest, setSearchFocusRequest] = useState(0);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showSubdivisionModal, setShowSubdivisionModal] = useState(false);
-  const [showSatelliteSlider, setShowSatelliteSlider] = useState(false);
+  const [showChangeDetails, setShowChangeDetails] = useState(false);
   const [showSchemaHarmonizer, setShowSchemaHarmonizer] = useState(false);
   const [showThreeDCadastre, setShowThreeDCadastre] = useState(false);
   const [blockedData, setBlockedData] = useState(null);
@@ -588,7 +589,7 @@ const ParcelDetailPage = () => {
         </div>
       )}
 
-      {/* 4. AI SATELLITE RADAR TAB */}
+      {/* 4. REMOTE SENSING CHANGE DETECTION TAB */}
       {activeTab === "ai" && (
         <div className="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
@@ -598,42 +599,53 @@ const ParcelDetailPage = () => {
               </span>
               <div>
                 <h3 className="text-lg font-black text-earth-950">Remote Sensing Change Detection</h3>
-                <p className="text-xs text-earth-600">Bi-temporal satellite imagery comparison against sanctioned cadastre</p>
+                <p className="text-xs text-earth-600">Parcel-associated prototype analysis from local demonstration records</p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setShowSatelliteSlider(true)}
+              onClick={() => setShowChangeDetails(true)}
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-rose-800"
             >
               <Eye size={14} />
-              Open Bi-Temporal Slider (2024 vs 2026)
+              View change details
             </button>
           </div>
 
+          <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-950">
+            Simulated sample analysis only. No real satellite imagery or remote-sensing provider is connected; this is not authoritative intelligence.
+          </p>
+
           <div className="grid gap-4 sm:grid-cols-3 text-xs">
             <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200">
-              <span className="font-bold text-rose-900 uppercase tracking-wider">Satellite Anomaly Flag</span>
+              <span className="font-bold text-rose-900 uppercase tracking-wider">Detected change</span>
               <p className="mt-1 text-sm font-black text-rose-950">
-                {parcel.aiGeospatial?.satelliteChangeDetection?.anomalyType || "Boundary Conformity Normal"}
+                {changeDetection?.status === "change-detected"
+                  ? changeDetection.detectedChange
+                  : changeDetection?.status === "no-change-recorded"
+                    ? "No change recorded in sample analysis"
+                    : "No sample analysis available"}
               </p>
             </div>
 
             <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200">
-              <span className="font-bold text-amber-900 uppercase tracking-wider">Confidence Level</span>
-              <p className="mt-1 text-2xl font-black text-amber-950">
-                {parcel.aiGeospatial?.satelliteChangeDetection?.confidenceScorePercent || 94}%
-              </p>
+              <span className="font-bold text-amber-900 uppercase tracking-wider">Sample confidence</span>
+              <p className="mt-1 text-2xl font-black text-amber-950">{changeDetection?.confidencePercent != null ? `${changeDetection.confidencePercent}%` : "Not available"}</p>
             </div>
 
             <div className="rounded-2xl bg-blue-50 p-4 border border-blue-200">
-              <span className="font-bold text-blue-900 uppercase tracking-wider">Footprint Change</span>
-              <p className="mt-1 text-2xl font-black text-blue-950">
-                +{parcel.aiGeospatial?.satelliteChangeDetection?.detectedFootprintChangeSqM || 142} m²
-              </p>
+              <span className="font-bold text-blue-900 uppercase tracking-wider">Detection / recorded pass date · change area</span>
+              <p className="mt-1 text-sm font-black text-blue-950">{changeDetection?.detectionDate || "Not available"} · {changeDetection?.changeAreaSqM != null ? `${changeDetection.changeAreaSqM} m²` : "Area not available"}</p>
             </div>
           </div>
+          {changeDetection?.sourceImagery && (
+            <p className="text-xs text-earth-700">
+              <strong>Recorded imagery metadata:</strong> {Object.entries(changeDetection.sourceImagery)
+                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+                .join(" · ")}
+            </p>
+          )}
         </div>
       )}
 
@@ -731,11 +743,10 @@ const ParcelDetailPage = () => {
         />
       )}
 
-      {showSatelliteSlider && (
-        <BiTemporalSatelliteModal
+      {showChangeDetails && (
+        <RemoteSensingChangeDetectionModal
           parcel={parcel}
-          onClose={() => setShowSatelliteSlider(false)}
-          onActionCompleted={loadParcel}
+          onClose={() => setShowChangeDetails(false)}
         />
       )}
 

@@ -3,6 +3,7 @@ import {
   getEffectiveParcelTransaction,
   isParcelTransaction
 } from "./parcelTransactionService.js";
+import { createRemoteSensingChangeDetection } from "./remoteSensingChangeDetectionService.js";
 
 const hasData = (value) => {
   if (value === undefined || value === null) return false;
@@ -247,6 +248,16 @@ export const assembleParcelCentricRecord = ({
       source: {
         systemName: "Land Stack local transaction tracker",
         mode: "local-demo",
+        authoritative: false,
+        lastSynchronizedAt: null
+      }
+    },
+    changeDetection: {
+      status: "available",
+      data: createRemoteSensingChangeDetection(parcel),
+      source: {
+        systemName: null,
+        mode: "simulated",
         authoritative: false,
         lastSynchronizedAt: null
       }

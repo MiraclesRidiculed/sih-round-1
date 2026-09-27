@@ -12,17 +12,18 @@ export const INTEROPERABILITY_MODULES = Object.freeze({
   "land-use": "landUse",
   "property-tax": "propertyTax",
   utilities: "utilities",
-  transactions: "transactions"
+  transactions: "transactions",
+  "change-detection": "changeDetection"
 });
 
 const ROLE_MODULE_ACCESS = Object.freeze({
   admin: Object.keys(INTEROPERABILITY_MODULES),
-  revenue_officer: ["cadastral", "rights", "land-use", "restrictions"],
-  surveyor: ["cadastral", "restrictions"],
-  sro: ["cadastral", "registration", "encumbrances", "restrictions", "transactions"],
-  court: ["cadastral", "restrictions"],
-  bank: ["cadastral", "rights", "encumbrances", "restrictions"],
-  citizen: ["cadastral", "rights", "registration", "planning", "building-permission", "encumbrances", "land-use", "restrictions", "transactions"]
+  revenue_officer: ["cadastral", "rights", "land-use", "restrictions", "change-detection"],
+  surveyor: ["cadastral", "restrictions", "change-detection"],
+  sro: ["cadastral", "registration", "encumbrances", "restrictions", "transactions", "change-detection"],
+  court: ["cadastral", "restrictions", "change-detection"],
+  bank: ["cadastral", "rights", "encumbrances", "restrictions", "change-detection"],
+  citizen: ["cadastral", "rights", "registration", "planning", "building-permission", "encumbrances", "land-use", "restrictions", "transactions", "change-detection"]
 });
 
 export const canAccessInteroperabilityModule = (role, module) =>

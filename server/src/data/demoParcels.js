@@ -670,11 +670,11 @@ export const demoParcels = [
         lastSatellitePassDate: "2026-08-18",
         historicalReferenceDate: "2024-03-01",
         anomalyDetected: true,
-        anomalyType: "Potential Encroachment Alert on North-East Edge",
+        anomalyType: "Sample: potential boundary change on North-East Edge",
         confidenceScorePercent: 94,
         detectedFootprintChangeSqM: 38.5,
         aiRecommendation:
-          "AI Satellite Alert: North-East corner shows unauthorized boundary fencing extending 3.8m toward lake buffer zone. Immediate field inspection by Revenue Inspector recommended."
+          "Simulated sample only: illustrative 38.5 sq.m boundary change requires independent field verification. No satellite imagery provider is connected."
       }
     },
     departmentalWorkflows: [
@@ -734,7 +734,7 @@ export const demoParcels = [
     },
     verificationHint: {
       status: "attention",
-      summary: "RTC and Kaveri records are consistent, but AI Satellite Change Detection flagged 38.5 sqm perimeter anomaly near lake buffer."
+      summary: "Demo record includes a simulated 38.5 sq.m perimeter change sample; it is not a verified satellite finding."
     },
     blockchain: {
       parcelKey: "KAR|Bengaluru Urban|Bengaluru East|Bidarahalli|Avalahalli|123/4|A",
@@ -746,7 +746,7 @@ export const demoParcels = [
     },
     qrToken: "scan-kar-blru-0001",
     demoNotes:
-      "Karnataka Land Stack Pilot: Demonstrates Bhoomi RTC, Kaveri deed, Master Plan R-2 zoning, and AI satellite change detection flagging lake buffer encroachment."
+      "Karnataka Land Stack Pilot: Demonstrates local Bhoomi RTC, Kaveri deed, Master Plan R-2 zoning, and simulated remote-sensing change detection. No satellite provider is connected."
   },
 
   // 4. KARNATAKA PILOT PARCEL 2 (Mysuru - Heritage & Active Agricultural Mortgage)
@@ -1549,5 +1549,4 @@ export const demoUsers = [
     lastLoginAt: "2026-08-20T10:25:00.000Z"
   }
 ];
-
 

@@ -137,6 +137,20 @@ const unifiedRecord = {
         ]
       },
       source: { systemName: "Local prototype", mode: "local-demo", authoritative: false }
+    },
+    changeDetection: {
+      status: "available",
+      data: {
+        status: "change-detected",
+        analysisMode: "simulated",
+        detectedChange: "Potential sample change",
+        detectionDate: "2026-08-20",
+        confidencePercent: 94,
+        affectedParcel: { parcelId: sourceParcel.parcelId, ulpin: sourceParcel.ulpin },
+        sourceImagery: null,
+        source: { mode: "simulated", authoritative: false }
+      },
+      source: { mode: "simulated", authoritative: false }
     }
   }
 };
@@ -170,6 +184,7 @@ test("citizen detail exposes permitted statuses and land information, not admini
     notice: "A transfer restriction is recorded for this parcel."
   });
   assert.equal(result.unifiedRecord.modules.propertyTax.status, "unavailable");
+  assert.equal(result.unifiedRecord.modules.changeDetection.data.analysisMode, "simulated");
   assert.deepEqual(
     result.unifiedRecord.modules.transactions.data.applications.map((application) => application.id),
     ["application-citizen-1"]
@@ -206,11 +221,11 @@ test("citizen response preserves unavailable status when a dataset has no config
 
 test("officer parcel views expose only each role's application demo modules", () => {
   const roleModules = {
-    revenue_officer: ["cadastral", "ror", "landUse", "restrictions"],
-    surveyor: ["cadastral", "restrictions"],
-    sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions"],
-    court: ["cadastral", "restrictions"],
-    bank: ["cadastral", "ror", "encumbrance", "restrictions"]
+    revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection"],
+    surveyor: ["cadastral", "restrictions", "changeDetection"],
+    sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection"],
+    court: ["cadastral", "restrictions", "changeDetection"],
+    bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection"]
   };
 
   for (const [role, permittedModules] of Object.entries(roleModules)) {

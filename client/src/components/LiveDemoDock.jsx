@@ -28,7 +28,7 @@ import { useLiveEvents } from "../context/LiveEventContext";
 const LiveDemoDock = ({
   currentParcelId = "TN-KPM-0001",
   onOpenSubdivision,
-  onOpenSatelliteSlider,
+  onOpenChangeDetails,
   onOpenSchemaHarmonizer,
   onOpenThreeDCadastre
 }) => {
@@ -325,14 +325,14 @@ const LiveDemoDock = ({
             <div className="mt-3 space-y-2 text-xs">
               <button
                 type="button"
-                onClick={() => onOpenSatelliteSlider?.()}
+                onClick={() => onOpenChangeDetails?.()}
                 className="w-full flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50/70 p-2.5 text-left transition hover:bg-rose-100/70"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-rose-700 font-bold">🛰️</span>
                   <div>
-                    <p className="font-bold text-rose-950">Bi-Temporal Satellite Slider</p>
-                    <p className="text-[10px] text-rose-800/80">Compare 2024 and 2026 satellite imagery</p>
+                    <p className="font-bold text-rose-950">Remote Sensing Change Detection</p>
+                    <p className="text-[10px] text-rose-800/80">Open parcel-linked sample analysis</p>
                   </div>
                 </div>
               </button>

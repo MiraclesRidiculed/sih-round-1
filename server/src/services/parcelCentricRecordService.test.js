@@ -70,6 +70,10 @@ test("correlates existing modules and provenance under the parcel ULPIN", () => 
   assert.equal(record.modules.utilities.source.mode, "local-demo");
   assert.equal(record.modules.utilities.source.authoritative, false);
   assert.deepEqual(record.modules.utilities.data.infrastructure, {});
+  assert.equal(record.modules.changeDetection.data.affectedParcel.ulpin, parcel.ulpin);
+  assert.equal(record.modules.changeDetection.data.analysisMode, "simulated");
+  assert.equal(record.modules.changeDetection.data.sourceImagery, null);
+  assert.equal(record.modules.changeDetection.data.source.authoritative, false);
   assert.equal(record.modules.ror.source.systemName, "Tamil Nilam");
   assert.equal(record.modules.ror.source.mode, "local-demo");
   assert.equal(record.synchronization.realTime, false);
@@ -92,6 +96,49 @@ test("reports unavailable and pending datasets explicitly", () => {
   assert.equal(result.modules.registration.status, "unavailable");
   assert.equal(result.modules.propertyTax.status, "unavailable");
   assert.equal(result.modules.utilities.status, "unavailable");
+  assert.equal(result.modules.changeDetection.data.status, "unavailable");
+});
+
+test("normalizes sample change detection data without inventing imagery metadata", () => {
+  const result = assembleParcelCentricRecord({
+    parcel: {
+      ...parcel,
+      aiGeospatial: {
+        satelliteChangeDetection: {
+          anomalyDetected: true,
+          anomalyType: "Potential boundary change",
+          lastSatellitePassDate: "2026-08-18",
+          confidenceScorePercent: 94,
+          detectedFootprintChangeSqM: 38.5,
+          sourceImagery: {
+            provider: "Seed imagery label",
+            acquiredAt: "2026-08-18",
+            unsupportedInternalField: "must not be exposed"
+          }
+        }
+      }
+    }
+  });
+  const change = result.modules.changeDetection.data;
+
+  assert.equal(change.status, "change-detected");
+  assert.equal(change.analysisMode, "simulated");
+  assert.equal(change.detectedChange, "Potential boundary change");
+  assert.equal(change.detectionDate, "2026-08-18");
+  assert.equal(change.confidencePercent, 94);
+  assert.deepEqual(change.affectedParcel, {
+    parcelId: parcel.parcelId,
+    ulpin: parcel.ulpin,
+    surveyNumber: parcel.surveyNumber
+  });
+  assert.equal(change.changeAreaSqM, 38.5);
+  assert.deepEqual(change.sourceImagery, {
+    provider: "Seed imagery label",
+    acquiredAt: "2026-08-18"
+  });
+  assert.equal(change.source.mode, "simulated");
+  assert.equal(change.source.authoritative, false);
+  assert.equal("unsupportedInternalField" in change.sourceImagery, false);
 });
 
 test("marks an active RCCMS stay as restricted and retains its source case", () => {

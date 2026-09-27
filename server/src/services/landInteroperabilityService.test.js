@@ -37,7 +37,10 @@ test("builds a consistent local-prototype response envelope with ULPIN metadata"
 test("maps interoperability module paths to existing record modules and enforces module roles", () => {
   assert.equal(INTEROPERABILITY_MODULES.rights, "ror");
   assert.equal(INTEROPERABILITY_MODULES.encumbrances, "encumbrance");
+  assert.equal(INTEROPERABILITY_MODULES["change-detection"], "changeDetection");
   assert.equal(canAccessInteroperabilityModule("admin", "property-tax"), true);
+  assert.equal(canAccessInteroperabilityModule("citizen", "change-detection"), true);
+  assert.equal(canAccessInteroperabilityModule("surveyor", "change-detection"), true);
   assert.equal(canAccessInteroperabilityModule("revenue_officer", "rights"), true);
   assert.equal(canAccessInteroperabilityModule("citizen", "registration"), true);
   assert.equal(canAccessInteroperabilityModule("citizen", "property-tax"), false);

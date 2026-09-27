@@ -30,15 +30,16 @@ const moduleNames = [
   "restrictions",
   "propertyTax",
   "utilities",
-  "transactions"
+  "transactions",
+  "changeDetection"
 ];
 
 const OFFICER_MODULE_ACCESS = Object.freeze({
-  revenue_officer: ["cadastral", "ror", "landUse", "restrictions"],
-  surveyor: ["cadastral", "restrictions"],
-  sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions"],
-  court: ["cadastral", "restrictions"],
-  bank: ["cadastral", "ror", "encumbrance", "restrictions"]
+  revenue_officer: ["cadastral", "ror", "landUse", "restrictions", "changeDetection"],
+  surveyor: ["cadastral", "restrictions", "changeDetection"],
+  sro: ["cadastral", "registration", "encumbrance", "restrictions", "transactions", "changeDetection"],
+  court: ["cadastral", "restrictions", "changeDetection"],
+  bank: ["cadastral", "ror", "encumbrance", "restrictions", "changeDetection"]
 });
 
 const projectOfficerModule = (name, module, role, actorId) => {
@@ -232,6 +233,9 @@ const projectOfficerModule = (name, module, role, actorId) => {
         }))
     };
   }
+  if (name === "changeDetection") {
+    return data;
+  }
   return null;
 };
 
@@ -251,7 +255,7 @@ export const toOfficerParcelSearchResult = (parcel) => toCitizenParcelSearchResu
 
 export const toOfficerParcelDetail = (parcel, unifiedRecord, role, actorId) => {
   const allowedModules = role === "citizen"
-    ? ["cadastral", "ror", "registration", "planning", "buildingPermission", "encumbrance", "landUse", "restrictions", "transactions"]
+    ? ["cadastral", "ror", "registration", "planning", "buildingPermission", "encumbrance", "landUse", "restrictions", "transactions", "changeDetection"]
     : OFFICER_MODULE_ACCESS[role];
   if (!allowedModules) throw new TypeError(`No officer parcel access policy is configured for role "${role}".`);
   const sourceModules = unifiedRecord.modules || {};
@@ -261,6 +265,10 @@ export const toOfficerParcelDetail = (parcel, unifiedRecord, role, actorId) => {
     }
 
     const module = sourceModules[name] || { status: "unavailable", data: null, source: null };
+    if (name === "changeDetection") {
+      const data = projectOfficerModule(name, module, role, actorId);
+      return [name, publicModule(module, data)];
+    }
     const data = projectOfficerModule(name, module, role, actorId);
     return [name, publicModule(module, data)];
   }));
@@ -446,6 +454,10 @@ export const toCitizenParcelDetail = (parcel, unifiedRecord, actorId) => {
     transactions: publicModule(
       modules.transactions,
       projectOfficerModule("transactions", modules.transactions, "citizen", actorId)
+    ),
+    changeDetection: publicModule(
+      modules.changeDetection,
+      projectOfficerModule("changeDetection", modules.changeDetection, "citizen", actorId)
     )
   };
 

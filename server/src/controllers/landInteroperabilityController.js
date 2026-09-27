@@ -106,7 +106,7 @@ export const getInteroperabilityParcelModule = asyncHandler(async (req, res) => 
   const moduleSource = {
     ...(module.source || {}),
     systemName: module.source?.systemName || null,
-    mode: "local-demo",
+    mode: module.source?.mode === "simulated" ? "simulated" : "local-demo",
     authoritative: false,
     realTime: false,
     lastSynchronizedAt: module.source?.lastSynchronizedAt || null,

@@ -185,9 +185,9 @@ const DepartmentHomePage = () => {
           hint="Base, Essential (RRR) & Use-Case"
         />
         <MetricCard
-          label="AI Anomalies Flagged"
-          value={dashboard?.stats?.aiAnomaliesDetected || 2}
-          hint="Satellite change detection and review"
+          label="Sample Changes Flagged"
+          value={dashboard?.stats?.aiAnomaliesDetected ?? "Not available"}
+          hint="Simulated remote-sensing change analysis"
         />
         <MetricCard
           label="Sepolia Audit Layer"

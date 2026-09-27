@@ -41,6 +41,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
   const [searchParams, setSearchParams] = useSearchParams();
   const geoJson = propGeoJson || parcel?.geoJson;
   const planningInfo = getParcelPlanningInfo(parcel?.unifiedRecord, { ...parcel, geoJson });
+  const changeDetection = parcel?.unifiedRecord?.modules?.changeDetection?.data;
   const encumbranceInfo = parcel?.unifiedRecord?.modules?.encumbrance?.data?.record ||
     parcel?.essentialLayers?.encumbrance || {};
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,7 +50,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
   const searchInputRef = useRef(null);
   const isSearchResult = searchParams.get("mapSearch") === "1";
 
-  // Active layers state (The 3 Layers of Land Stack + AI)
+  // Active map layers.
   const [showBaseLayer, setShowBaseLayer] = useState(true);
   const [showEssentialLayer, setShowEssentialLayer] = useState(true);
   const [showUseCaseLayer, setShowUseCaseLayer] = useState(true);
@@ -159,14 +160,7 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
     }
   };
 
-  // Synthesize AI encroachment anomaly polygon if anomaly detected
-  const hasAiAnomaly = Boolean(parcel?.aiGeospatial?.satelliteChangeDetection?.anomalyDetected);
-  const anomalyCoords = coords.length > 2 ? [
-    [coords[0][1], coords[0][0]],
-    [coords[1][1], coords[1][0]],
-    [coords[1][1] + 0.00025, coords[1][0] + 0.0001],
-    [coords[0][1] + 0.00025, coords[0][0] - 0.0001]
-  ] : [];
+  const hasDetectedChange = changeDetection?.status === "change-detected";
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/70 shadow-panel">
@@ -293,10 +287,14 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
             Layer 3: Use-Case (Utilities)
             {showUseCaseLayer && <Check size={12} className="text-emerald-700" />}
           </button>
+        </div>
+        )}
 
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
           <button
             type="button"
             onClick={() => setShowChangeDetection(!showChangeDetection)}
+            aria-pressed={showChangeDetection}
             className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 transition ${
               showChangeDetection
                 ? "border border-rose-300 bg-rose-50 text-rose-900 shadow-sm"
@@ -304,10 +302,9 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
             }`}
           >
             <Zap size={12} className={showChangeDetection ? "text-rose-600" : "text-gray-400"} />
-            Change Detection
+            Remote Sensing Change
           </button>
         </div>
-        )}
         {planningInfo.zoningGeoJson && (
           <button
             type="button"
@@ -535,29 +532,46 @@ const ParcelMap = ({ parcel, geoJson: propGeoJson, height = "440px", fitRequest 
           </>
         )}
 
-        {/* AI SATELLITE RADAR */}
-        {!restrictedView && showChangeDetection && hasAiAnomaly && anomalyCoords.length > 0 && (
-          <Polygon
-            positions={anomalyCoords}
-            pathOptions={{
-              color: "#e11d48",
-              weight: 3,
-              fillColor: "#f43f5e",
-              fillOpacity: 0.55
-            }}
+        {showChangeDetection && hasDetectedChange && leafletCoords.length > 0 && (
+          <Marker
+            position={[centerLat, centerLng]}
+            icon={L.divIcon({
+              className: "",
+              html: '<span class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-rose-700 text-sm font-black text-white shadow-lg">!</span>',
+              iconSize: [36, 36],
+              iconAnchor: [18, 18]
+            })}
           >
+            <Tooltip>Sample change recorded for this parcel</Tooltip>
             <Popup>
-              <div className="space-y-1 p-1 text-xs">
-                <div className="flex items-center gap-1 font-bold text-rose-800">
+              <div className="max-w-xs space-y-2 p-1 text-xs">
+                <div className="flex items-center gap-1 font-bold text-rose-900">
                   <ShieldAlert size={14} />
-                  <span>AI Encroachment Alert</span>
+                  <span>Remote Sensing Change Detection</span>
                 </div>
-                <p><strong>Confidence:</strong> {parcel?.aiGeospatial?.satelliteChangeDetection?.confidenceScorePercent}%</p>
-                <p><strong>Anomaly:</strong> {parcel?.aiGeospatial?.satelliteChangeDetection?.anomalyType}</p>
-                <p><strong>Excess Footprint:</strong> {parcel?.aiGeospatial?.satelliteChangeDetection?.detectedFootprintChangeSqM} m²</p>
+                <p className="rounded bg-amber-50 px-2 py-1 font-semibold text-amber-900">
+                  Simulated sample analysis · not real satellite intelligence
+                </p>
+                <p><strong>Detected change:</strong> {changeDetection.detectedChange || "Change recorded; classification unavailable"}</p>
+                {changeDetection.detectionDate && <p><strong>Detection / recorded pass date:</strong> {changeDetection.detectionDate}</p>}
+                {changeDetection.confidencePercent !== null && <p><strong>Sample confidence:</strong> {changeDetection.confidencePercent}%</p>}
+                {changeDetection.changeAreaSqM !== null && <p><strong>Recorded change area:</strong> {changeDetection.changeAreaSqM} m²</p>}
+                <p><strong>Affected parcel:</strong> {changeDetection.affectedParcel?.parcelId || parcel?.parcelId}</p>
+                <p><strong>ULPIN:</strong> {changeDetection.affectedParcel?.ulpin || parcel?.ulpin || "Unassigned"}</p>
+                {changeDetection.referenceDate && <p><strong>Reference date:</strong> {changeDetection.referenceDate}</p>}
+                {changeDetection.sourceImagery && (
+                  <div className="border-t border-slate-200 pt-1">
+                    <p className="font-semibold">Source imagery metadata (recorded)</p>
+                    {Object.entries(changeDetection.sourceImagery).map(([key, value]) => (
+                      <p key={key}><strong>{key}:</strong> {Array.isArray(value) ? value.join(", ") : String(value)}</p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-slate-600">{changeDetection.source?.disclaimer}</p>
+                <p className="text-slate-500">Marker indicates the parcel, not the exact change location.</p>
               </div>
             </Popup>
-          </Polygon>
+          </Marker>
         )}
 
         {/* LIVE CORS GNSS ROVER TELEMETRY PIN */}
