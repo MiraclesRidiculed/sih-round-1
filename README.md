@@ -126,3 +126,21 @@ Run the focused tests with `npm --workspace server run test:interoperability`.
 Parcel detail records expose a normalized `changeDetection` module in the unified parcel response and the interoperability endpoint above. Existing local/demo anomaly records are explicitly tagged `analysisMode: "simulated"` and `source.mode: "simulated"`; the source disclaimer states that no real satellite imagery or provider is connected. Detection dates, confidence, change area, and allowlisted imagery metadata are shown only when present in local records—missing values are not filled with sample defaults.
 
 On the parcel GIS map, enable **Remote Sensing Change** to show a clickable marker for a parcel with a recorded sample change. Its popup opens the change information and identifies the affected parcel and ULPIN. The marker identifies the parcel only, not an inferred pixel-level change location.
+
+## Land governance decision dashboard
+
+The authenticated `GET /api/dashboard` endpoint provides a role-scoped summary computed from existing local Parcel, RCCMS case, and transaction workflow records. The dashboard shows only the metrics and distributions allowed for the active application role; citizens continue to use parcel lookup, and only admins receive the detailed parcel directory payload. Dashboard values are application-record counts and are not authoritative departmental totals.
+
+Available summaries include parcel totals; land-use, state, and district distributions; active restrictions derived from existing RCCMS and parcel restriction fields; locally tracked pending registrations; RCCMS case counts/statuses; recorded child subdivisions; property-tax statuses present in parcel records; recorded mortgage flags; and simulated change-detection sample counts. Role policy restricts case, subdivision, registration, mortgage, and property-tax summaries to relevant roles:
+
+| Role | Visible summaries |
+| --- | --- |
+| Admin | All metrics and distributions. |
+| Revenue officer | Parcel total, active restrictions, simulated sample changes, land use, state, and district. |
+| Surveyor | Parcel total, recorded subdivisions, simulated sample changes, state, and district. |
+| SRO | Parcel total, active restrictions, pending registrations, state, and district. |
+| Court | Parcel total, active restrictions, RCCMS case count/status, state, and district. |
+| Bank | Parcel total, active restrictions, recorded mortgage count, state, and district. |
+| Citizen | Governance dashboard unavailable; parcel lookup remains available. |
+
+Missing tax statuses are not counted as a tax category, and simulated change samples are identified as non-satellite intelligence.

@@ -86,7 +86,7 @@ Land Stack establishes a federated, interoperable national Digital Public Infras
 
 ## 4. Progress & Resume Context
 
-The requested implementation sequence is complete through **STEP 29**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
+The requested implementation sequence is complete through **STEP 30**. Continue from this state; do not restart or reimplement completed work. The older step numbering in prior checkpoints may differ from the numbered prompts supplied by the user.
 
 ### Completed scope
 - **Steps 1–4:** Repository baseline, backend authentication/personas, idempotent seed, frontend login/session integration.
@@ -96,6 +96,7 @@ The requested implementation sequence is complete through **STEP 29**. Continue 
 - **Step 27:** Parcel-panel property-tax and utilities/infrastructure sections. These are derived from existing local/demo records, remain linked to ULPIN, identify missing sources, and explicitly avoid presenting sample data or proximity as verified/live tax assessments or utility connections. Authentication/RCCMS were not changed for this step.
 - **Step 28:** Read-only local-prototype interoperability API at `/api/land/parcels/:ulpin`, with module endpoints for cadastral, rights, registration, planning, encumbrances, restrictions, building permission, land use, property tax, utilities, and transactions. Uses existing record assembly and role-specific citizen/officer projections, explicit per-module RBAC, standard success/error envelopes, source and ULPIN metadata, and README API documentation. This does not connect to external government systems.
 - **Step 29:** Prototype Remote Sensing Change Detection normalized from local parcel sample records and exposed as a role-safe `changeDetection` unified-record module and `/api/land/parcels/:ulpin/change-detection`. The GIS map shows a clickable parcel-level marker and popup with recorded detection details; the details panel and modal clearly label analysis simulated, avoid default/fabricated confidence or imagery metadata, and state that no real satellite provider is connected. Marker identifies only the parcel, not an exact change location.
+- **Step 30:** Role-aware Land Governance Decision Dashboard using Parcel, RCCMS, and transaction records already in the application. Counts and distributions are derived from persisted values, role-filtered, and presented as simple bars/cards. Does not use hardcoded/fallback statistics; citizen access remains parcel lookup. Dashboard metrics are explicitly local application summaries, not authoritative departmental totals.
 
 ### Latest Step 27 files and behavior
 - `client/src/utils/parcelInfo.js`: Maps only present tax fields (including assessment/payment identifiers and record-provided update time); maps available electricity/power, water, sewer/drainage, roads, telecom, and infrastructure fields; does not infer an electricity connection from substation distance; exposes configured/unavailable utility categories.
@@ -120,8 +121,13 @@ The requested implementation sequence is complete through **STEP 29**. Continue 
 - Interoperability API test covers role-authorized change-detection module retrieval.
 - Latest verification: full server suite **38/38 passed**; client parcel-search/info tests **16/16 passed**; offline-survey tests **4/4 passed**; production client build passed.
 
+### Step 30 verification
+- Dashboard aggregation tests cover persisted metrics/distributions, role visibility, and empty datasets.
+- Dashboard controller tests verify staff responses omit detailed parcel records and admin responses retain the authorized parcel directory.
+- Latest verification: full server suite **43/43 passed**; client parcel/search tests **16/16 passed**; offline-survey tests **4/4 passed**; production client build passed.
+
 ### Immediate resume action
-Step 27 was committed and pushed as `b8a594f`; Step 28 added the local-prototype interoperability API and Step 29 added prototype change detection as described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 29 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
+Step 27 was committed and pushed as `b8a594f`; Step 28 added the local-prototype interoperability API, Step 29 added prototype change detection, and Step 30 added role-aware governance summaries as described above. On the next task, inspect `git status --short --branch` and the current diff, then continue after Step 30 without reimplementing completed work. Continue on `GIS-Branch-2`; do not force push or create another branch unless explicitly requested. Include the repository’s required `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>` trailer in any commit created by the agent.
 
 ---
 

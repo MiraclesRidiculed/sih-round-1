@@ -1,26 +1,62 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import {
-  AlertTriangle,
-  BookOpen,
-  CheckCircle,
-  Database,
+  BarChart3,
   Landmark,
-  Layers,
-  MapPinned,
-  Search,
-  ShieldAlert,
-  ShieldCheck,
-  Zap
+  MapPinned
 } from "lucide-react";
-import { fetchBlockchainStatus, fetchDashboard, searchParcels } from "../api/client";
+import { fetchDashboard, searchParcels } from "../api/client";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useLiveEvents } from "../context/LiveEventContext";
-import MetricCard from "../components/MetricCard";
 import ParcelList from "../components/ParcelList";
 import SearchBar from "../components/SearchBar";
-import StatusPill from "../components/StatusPill";
+
+const METRIC_PRESENTATION = {
+  totalParcels: ["Total parcels", "Parcel records"],
+  activeRestrictions: ["Active restrictions", "Parcel and RCCMS restriction records"],
+  pendingRegistrations: ["Pending registrations", "Local transaction applications"],
+  rccmsCases: ["RCCMS cases", "Recorded case records"],
+  subdivisions: ["Recorded subdivisions", "Child subdivision records"],
+  detectedSpatialChanges: ["Simulated sample changes", "Local change-detection samples; not satellite intelligence"],
+  parcelsWithEncumbrance: ["Parcels with mortgage flag", "Recorded parcel encumbrance flag"]
+};
+
+const GOVERNANCE_ROLE_LABELS = {
+  admin: "National platform administrator",
+  revenue_officer: "Revenue officer",
+  surveyor: "Surveyor",
+  sro: "Sub-registrar",
+  court: "Revenue court",
+  bank: "Financial institution"
+};
+
+const DistributionChart = ({ title, items }) => {
+  const maximum = Math.max(0, ...items.map((item) => item.count));
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      {items.length ? (
+        <div className="mt-4 space-y-3">
+          {items.map(({ label, count }) => (
+            <div key={label} className="grid grid-cols-[minmax(0,1fr)_2.5rem] items-center gap-x-3 gap-y-1.5">
+              <span className="truncate text-xs text-slate-700" title={label}>{label}</span>
+              <span className="text-right text-xs font-semibold tabular-nums text-slate-900">{count}</span>
+              <div className="col-span-2 h-2 rounded bg-slate-100" role="img" aria-label={`${label}: ${count}`}>
+                <div
+                  className="h-full rounded bg-[#315a7d]"
+                  style={{ width: `${maximum ? (count / maximum) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-slate-600">No records available for this summary.</p>
+      )}
+    </section>
+  );
+};
 
 const DepartmentHomePage = () => {
   const { activeRole, currentPersona } = useAuth();
@@ -28,20 +64,22 @@ const DepartmentHomePage = () => {
   const { refreshKey } = useLiveEvents();
 
   const [dashboard, setDashboard] = useState(null);
-  const [blockchainStatus, setBlockchainStatus] = useState(null);
   const [selectedState, setSelectedState] = useState("All");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
 
   const deferredQuery = useDeferredValue(query);
 
   const loadData = async () => {
     try {
-      const [dashboardData, blockchainData] = await Promise.all([fetchDashboard(), fetchBlockchainStatus()]);
+      const dashboardData = await fetchDashboard();
       setDashboard(dashboardData);
-      setBlockchainStatus(blockchainData);
-      setResults(dashboardData.featuredParcels);
+      setResults(dashboardData.featuredParcels || []);
+      setDashboardError("");
+    } catch {
+      setDashboardError("Governance summaries could not be loaded from application records.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +91,7 @@ const DepartmentHomePage = () => {
 
   useEffect(() => {
     const search = async () => {
-      if (!dashboard) return;
+      if (!dashboard || activeRole !== "admin") return;
 
       const params = {};
       if (deferredQuery.trim()) {
@@ -68,14 +106,22 @@ const DepartmentHomePage = () => {
     };
 
     search();
-  }, [dashboard, deferredQuery, selectedState]);
+  }, [activeRole, dashboard, deferredQuery, selectedState]);
+
+  if (dashboardError && !dashboard) {
+    return (
+      <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+        {dashboardError}
+      </p>
+    );
+  }
 
   if (loading && !dashboard) {
     return (
       <div className="rounded-[2.5rem] border border-white/60 bg-white/80 p-12 text-center text-earth-800">
         <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-amber-900 border-t-transparent" />
         <p className="font-bold text-lg">Loading Land Stack services...</p>
-        <p className="text-xs text-earth-600 mt-1">Connecting to state cadastral services and audit records</p>
+        <p className="text-xs text-earth-600 mt-1">Loading local parcel and governance records</p>
       </div>
     );
   }
@@ -88,57 +134,50 @@ const DepartmentHomePage = () => {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-amber-200">
               <Landmark size={14} />
-              Department of Land Resources (DoLR) • Land Stack DPI
+              <BarChart3 size={14} aria-hidden="true" />
+              Land Stack • Local governance summaries
             </div>
             <h2 className="mt-4 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
-              India's Integrated GIS Platform for Modern Land Governance
+              Land Governance Decision Dashboard
             </h2>
             <p className="mt-4 text-sm text-gray-200 sm:text-base leading-relaxed">
-              Consolidating <strong>Base Cadastral Boundaries</strong>, <strong>Essential Governance (RoR & RRR)</strong>,
-              and <strong>Use-Case Infrastructure</strong> around 14-digit Bhu-Aadhaar (ULPIN). Piloted across Chandigarh (UT),
-              Tamil Nadu (Launched 31 Dec 2025), and Karnataka.
+              Summaries are calculated from parcel, workflow, subdivision, tax, and RCCMS records available in this application.
+              They are operational indicators, not authoritative departmental totals.
             </p>
 
-            {/* Quick State Filters */}
-            <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-bold uppercase tracking-wider text-amber-300 mr-1 text-[11px]">Pilot Filter:</span>
-              {["All", "Tamil Nadu", "Chandigarh (UT)", "Karnataka"].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setSelectedState(st)}
-                  className={`rounded-full px-3.5 py-1.5 font-bold transition ${
-                    selectedState === st
-                      ? "bg-amber-400 text-earth-950 shadow-md scale-105"
-                      : "bg-white/15 text-white hover:bg-white/25"
-                  }`}
-                >
-                  {st === "All" ? "🇮🇳 All National Pilots" : st}
-                </button>
-              ))}
-            </div>
+            {activeRole === "admin" && dashboard?.distributions?.state && (
+              <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-bold uppercase tracking-wider text-amber-300 mr-1 text-[11px]">Filter parcel directory by state:</span>
+                {dashboard.distributions.state.map(({ label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setSelectedState((current) => current === label ? "All" : label)}
+                    className={`rounded-full px-3.5 py-1.5 font-bold transition ${
+                      selectedState === label
+                        ? "bg-amber-400 text-earth-950"
+                        : "bg-white/15 text-white hover:bg-white/25"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {selectedState !== "All" && (
+                  <button type="button" onClick={() => setSelectedState("All")} className="text-amber-100 underline">
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Hero Badge */}
           <div className="rounded-3xl border border-white/20 bg-white/10 p-5 backdrop-blur-md lg:w-72 shrink-0">
             <p className="text-xs font-bold uppercase tracking-wider text-amber-200">Digital Public Infrastructure</p>
             <div className="mt-3 space-y-2 text-xs text-gray-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-400 shrink-0" />
-                <span>3-Tier Spatial Layering</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-400 shrink-0" />
-                <span>14-Digit ULPIN Standard</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-400 shrink-0" />
-                <span>Remote Sensing Change Detection</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-400 shrink-0" />
-                <span>Sepolia Tamper-Evident Trail</span>
-              </div>
+              <div><span className="font-semibold text-white">View:</span> {GOVERNANCE_ROLE_LABELS[activeRole] || activeRole}</div>
+              <div><span className="font-semibold text-white">Data:</span> Current local application records</div>
+              <div><span className="font-semibold text-white">Updated:</span> {dashboard?.generatedAt ? new Date(dashboard.generatedAt).toLocaleString() : "Not available"}</div>
             </div>
           </div>
         </div>
@@ -172,32 +211,29 @@ const DepartmentHomePage = () => {
         </div>
       </div>
 
-      {/* KPI Metrics Grid */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label="Pilot States & UTs"
-          value={dashboard?.stats?.statesOnboarded || 3}
-          hint="Tamil Nadu, Chandigarh UT & Karnataka"
-        />
-        <MetricCard
-          label="Spatial Layers Standard"
-          value="3 Layers"
-          hint="Base, Essential (RRR) & Use-Case"
-        />
-        <MetricCard
-          label="Sample Changes Flagged"
-          value={dashboard?.stats?.aiAnomaliesDetected ?? "Not available"}
-          hint="Simulated remote-sensing change analysis"
-        />
-        <MetricCard
-          label="Sepolia Audit Layer"
-          value={blockchainStatus?.enabled ? "Live Sepolia" : "Active DPI"}
-          hint="Tamper-evident audit trail"
-        />
+      <section aria-label="Governance metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Object.entries(dashboard?.metrics || {}).map(([key, value]) => {
+          const [label, source] = METRIC_PRESENTATION[key] || [key, "Local application records"];
+          return (
+            <article key={key} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{label}</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums text-[#0B2545]">{value}</p>
+              <p className="mt-1 text-xs text-slate-600">{source}</p>
+            </article>
+          );
+        })}
       </section>
 
-      {/* Search Bar with Quick Sample Buttons */}
-      <section className="rounded-[2.5rem] border border-white/70 bg-white/85 p-6 shadow-panel">
+      <section aria-label="Record distributions" className="grid gap-4 md:grid-cols-2">
+        {dashboard?.distributions?.landUse && <DistributionChart title="Parcels by recorded land use" items={dashboard.distributions.landUse} />}
+        {dashboard?.distributions?.propertyTaxStatus && <DistributionChart title="Property tax status (records with a status)" items={dashboard.distributions.propertyTaxStatus} />}
+        {dashboard?.distributions?.rccmsStatus && <DistributionChart title="RCCMS cases by recorded status" items={dashboard.distributions.rccmsStatus} />}
+        {dashboard?.distributions?.state && <DistributionChart title="Parcels by recorded state" items={dashboard.distributions.state} />}
+        {dashboard?.distributions?.district && <DistributionChart title="Parcels by recorded district" items={dashboard.distributions.district} />}
+      </section>
+
+      {activeRole === "admin" && (
+        <section className="rounded-[2.5rem] border border-white/70 bg-white/85 p-6 shadow-panel">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-lg font-bold text-earth-950">Land Stack Search Engine</h3>
@@ -251,13 +287,16 @@ const DepartmentHomePage = () => {
             </button>
           )}
         </div>
-      </section>
+        </section>
+      )}
 
       {/* Cadastral Parcels List */}
-      <ParcelList
-        parcels={results}
-        title={selectedState === "All" ? "National Cadastral Directory (All Pilots)" : `${selectedState} Land Records`}
-      />
+      {activeRole === "admin" && (
+        <ParcelList
+          parcels={results}
+          title={selectedState === "All" ? "Parcel directory" : `${selectedState} parcels`}
+        />
+      )}
     </div>
   );
 };
@@ -406,7 +445,7 @@ const ParcelLookupPage = ({ role }) => {
 
 const HomePage = () => {
   const { activeRole } = useAuth();
-  if (activeRole === "admin") return <DepartmentHomePage />;
+  if (activeRole !== "citizen") return <DepartmentHomePage />;
   return <ParcelLookupPage role={activeRole} />;
 };
 
