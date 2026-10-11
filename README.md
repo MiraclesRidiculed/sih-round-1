@@ -1,103 +1,96 @@
-# Karnataka Landchain MVP
+# Land Stack | National Integrated GIS-Based Digital Public Infrastructure (DPI) for Land Governance
 
-Tamper-evident Karnataka land parcel verification platform focused exclusively on 2D land parcels in Karnataka. The app combines authoritative-record style datasets, document fingerprinting, GeoJSON parcel visualization, and an Ethereum Sepolia audit layer.
+**Department of Land Resources (DoLR), Ministry of Rural Development, Government of India**
 
-## What this MVP does
+An integrated GIS-based Digital Public Infrastructure (DPI) platform bringing together all land-related datasets, workflows, and services into a single interoperable framework. Built upon georeferenced cadastral maps and linked with 14-digit Bhu-Aadhaar (ULPIN), Record of Rights (RoR), Master Plan Zoning, and cross-departmental workflows.
 
-- Models Karnataka-specific land parcels using ULPIN/Bhu-Aadhaar where available, plus survey number, hissa, khata, village, hobli, taluk, and district.
-- Stores current parcel state and searchable metadata in MongoDB.
-- Records parcel/document audit events on Ethereum Sepolia through a Solidity smart contract.
-- Verifies internal consistency between RTC-style data, mutation history, registration details, encumbrance state, and ownership timeline.
-- Generates parcel QR codes and supports QR scan based verification.
-- Keeps large documents off-chain and stores only their SHA-256 fingerprints plus storage references.
-- Uses clearly labelled demo adapters for Karnataka government system integrations when no official API is configured.
+---
 
-## Important legal note
+## 🏛️ Pilot Locations Covered
 
-This MVP does **not** treat blockchain as proof of legal ownership.
+Following the official Department of Land Resources (DoLR) launch on **31 December 2025**, Land Stack is piloted across diverse urban and rural contexts:
 
-- Authoritative land records come from Karnataka revenue, registration, survey, and related authorities.
-- Blockchain is used only as a tamper-evident audit layer, document hash layer, provenance layer, and verification aid.
-- MongoDB stores searchable application state, document metadata, analytics, and verification outputs.
-- IPFS/object storage references are stored for large files rather than placing full records on Ethereum.
+1. **Tamil Nadu Pilot (Industrial & Peri-Urban Growth Corridor):**
+   - Location: Kanchipuram / Sriperumbudur (`TN-KPM-0001` • ULPIN: `33030400100482`)
+   - Systems: *Tamil Nilam* (Patta/Chitta) & *TNREGINET 2.0* (Registration)
+   - Integration: CMDA Master Plan 2026 industrial zoning, active bank mortgage charge, CORS GNSS sub-meter cadastre.
+2. **Chandigarh UT Pilot (Urban Land Administration & Freehold Commercial):**
+   - Location: Sector 17-C Central Business District (`CHD-UT-0001` • ULPIN: `04010100200814`)
+   - Systems: *Chandigarh Estate Office* & *Municipal Corporation (MCC)*
+   - Integration: Le Corbusier heritage visual charter, urban commercial property register (UPR), digital PID.
+3. **Karnataka State Integration (Agricultural-to-Urban Conversion & Conflict Resolution):**
+   - Locations: Bengaluru Urban (`KAR-BLRU-0001`), Mysuru (`KAR-MYS-0002`), Belagavi (`KAR-BGM-0003`)
+   - Systems: *Bhoomi* (RTC), *Kaveri 2.0* (Deeds), *SSLR Dishaank* (Survey), *e-Aasthi* (Property Tax)
+   - Integration: 30m lake buffer monitoring, Section 95 land conversion, active Kisan Credit Card crop hypothecation, automated survey boundary overlap conflict detection.
 
-## Monorepo structure
+---
 
-- `client/` React + Vite + Tailwind + React Router + Leaflet UI
-- `server/` Express + MongoDB + Mongoose REST API
-- `contracts/` Hardhat + Solidity + Sepolia deployment scripts
+## 🗺️ The Three Spatial Layers Architecture
 
-## Demo Karnataka scope
+Land Stack organizes all land governance information into 3 standardized spatial layers:
 
-This MVP includes seeded demo parcels only from Karnataka districts and intentionally avoids:
+* **Layer 1: Base Cadastral & ULPIN Layer (Foundational):**
+  - Georeferenced cadastral boundaries with vertex coordinates in `EPSG:4326` (WGS84).
+  - 14-digit Bhu-Aadhaar (ULPIN) generated from boundary coordinates.
+  - Interactive satellite imagery (Esri World Imagery) vs Cadastral Topo basemaps.
+* **Layer 2: Essential Governance & RRR Layer (Rights, Restrictions & Liabilities):**
+  - Record of Rights (RoR / Patta / Chitta / Jamabandi / RTC).
+  - SRO Registered Deeds, stamp duty receipts, and consideration values.
+  - Master Plan Zoning (Residential, Commercial CBD, Industrial, Green Belt).
+  - Building Plan Sanctions & FAR compliance.
+  - Encumbrance & Mortgage records.
+  - Comprehensive Rights, Restrictions & Liabilities (RRR) legal summary matrix.
+* **Layer 3: Additional / Use-Case Layer (Extended Services):**
+  - Municipal Property Taxation (Digital PID, demand vs paid status).
+  - Utility infrastructure networks (Water supply feeder pipelines, 11kV electricity grid, underground telecom ducts).
+  - Circle Rate / Guidance Value valuation references.
+  - Environmental & Hazard restriction zones (30m mandatory lake buffer lines, CRZ, forest perimeters).
 
-- buildings, apartments, floors, individual units, parking, or any vertical ownership
-- 3D or underground rights
-- multi-state support
-- generic state adapters
+---
 
-## Quick start
+## 🤖 AI/ML Geospatial Satellite Change Detection Radar
 
-1. Install dependencies:
+* **Bi-temporal Satellite Analysis:** Compares baseline imagery against current satellite passes.
+* **Encroachment & Setback Detection:** Automatically flags unauthorized constructions or boundary shifts exceeding approved building plans.
+* **Confidence Scoring:** Generates confidence percentages (e.g., 94% on Avalahalli parcel) and actionable recommendations for Revenue Inspectors.
 
+---
+
+## ⛓️ Tamper-Evident Sepolia Blockchain Audit Layer
+
+* **Legal Integrity:** Authoritative state revenue and registration records remain the statutory source of truth.
+* **Cryptographic Provenance:** Ethereum Sepolia smart contract (`LandRecordAudit.sol`) and client-side SHA-256 document hashing guarantee that historical deeds, mutation orders, and survey sketches cannot be altered retroactively.
+
+---
+
+## 👥 Multi-Role Administrative & Citizen Portals (RBAC)
+
+Switch between 4 personas via the top-right role selector:
+* 👤 **Citizen Portal:** Search parcels across India, inspect 3-tier layers, download official **Bhu-Aadhaar Property Cards**, and submit online service requests (e-Mutation, Zoning NOC, NEC).
+* 📜 **Revenue Department (Tehsildar / VAO):** Scrutinize RoR, review pending inheritance/sale mutations, and approve survey sketches.
+* 📐 **Town Planning Authority:** Audit Master Plan zoning compliance, issue building sanctions, and verify setback/lake buffer clearances.
+* 🖋️ **Sub-Registrar (SRO):** Perform pre-registration encumbrance checks and prevent unlawful transfers.
+
+---
+
+## 🚀 Quick Start
+
+1. **Install Dependencies:**
    ```bash
    npm install
    ```
 
-2. Copy environment templates:
-
-   - `server/.env.example` to `server/.env`
-   - `client/.env.example` to `client/.env`
-   - `contracts/.env.example` to `contracts/.env`
-
-3. Start MongoDB locally or point `MONGODB_URI` to an existing instance.
-
-   If you do not already have MongoDB running, you can start the included container:
-
-   ```bash
-   docker compose up -d mongo
-   ```
-
-4. Seed demo Karnataka parcels:
-
+2. **Seed Multi-State Land Stack Parcels:**
    ```bash
    npm run seed
    ```
 
-5. Start the backend and frontend:
-
+3. **Start the Platform:**
    ```bash
    npm run dev
    ```
 
-6. Optional: compile and deploy the smart contract to Sepolia:
-
-   ```bash
-   npm run chain:compile
-   npm run chain:deploy
-   ```
-
-## Key URLs
-
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:4000/api`
-
-## Demo flow
-
-1. Search a Karnataka parcel by ULPIN, survey number, village, or district.
-2. Open parcel detail to inspect map geometry, RTC-style summary, mutation state, ownership history, and registered documents.
-3. Scan or generate a QR code tied to the parcel.
-4. Upload a document to compare its SHA-256 fingerprint with stored on-chain/off-chain metadata.
-5. Review the verification report to see whether records are consistent and what remains pending.
-
-## Backend environment
-
-See [server/.env.example](./server/.env.example).
-
-## Contract environment
-
-See [contracts/.env.example](./contracts/.env.example).
-
-## Frontend environment
-
-See [client/.env.example](./client/.env.example).
+4. **Access Endpoints:**
+   - **Frontend Web Portal:** [http://localhost:5173](http://localhost:5173)
+   - **Backend API:** [http://localhost:4000/api](http://localhost:4000/api)
+   - **Standard Technical Document (STD):** [http://localhost:5173/std](http://localhost:5173/std) or see [Land_Stack_Standard_Technical_Document.md](Land_Stack_Standard_Technical_Document.md)

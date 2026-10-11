@@ -51,6 +51,31 @@ const parcelSchema = new Schema(
     landUse: { type: String, required: true, trim: true },
     geoJson: { type: geoJsonSchema, required: true },
     currentOwners: { type: [ownerShareSchema], default: [] },
+    state: { type: String, required: true, default: "Karnataka", index: true },
+    stateProfile: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    baseLayer: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    essentialLayers: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    additionalLayers: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    aiGeospatial: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+    departmentalWorkflows: {
+      type: [Schema.Types.Mixed],
+      default: []
+    },
     authoritativeRecords: {
       type: Schema.Types.Mixed,
       default: {}
@@ -72,7 +97,45 @@ const parcelSchema = new Schema(
       default: {}
     },
     qrToken: { type: String, required: true, unique: true },
-    demoNotes: { type: String, default: "" }
+    demoNotes: { type: String, default: "" },
+    disputeRecord: {
+      type: Schema.Types.Mixed,
+      default: {
+        hasActiveInjunction: false,
+        transactionLock: false,
+        caseNumber: "",
+        courtName: "",
+        presidingBench: "",
+        caseType: "",
+        stayOrderDate: "",
+        injunctionStatus: "No Pending Injunction",
+        injunctionTerms: "",
+        nextHearing: "",
+        orderReference: "",
+        blockedAttemptsCount: 0
+      }
+    },
+    subdivisionData: {
+      type: Schema.Types.Mixed,
+      default: {
+        isSubdivided: false,
+        activeSketch: null,
+        subdivisions: []
+      }
+    },
+    verticalStrata: {
+      type: Schema.Types.Mixed,
+      default: {
+        hasVerticalUnits: false,
+        buildingName: "",
+        totalFloors: 0,
+        floors: []
+      }
+    },
+    simulationState: {
+      type: Schema.Types.Mixed,
+      default: {}
+    }
   },
   { timestamps: true }
 );
