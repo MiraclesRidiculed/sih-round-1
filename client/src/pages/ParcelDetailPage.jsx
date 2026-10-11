@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertOctagon,
   AlertTriangle,
@@ -36,23 +36,22 @@ import {
   UserCheck,
   Zap
 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchParcel,
   issueCourtInjunctionApi,
   liftCourtInjunctionApi,
-  simulateFastTrackSroDeed,
   submitParcelWorkflow
 } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useLiveEvents } from "../context/LiveEventContext";
-import BiTemporalSatelliteModal from "../components/BiTemporalSatelliteModal";
+import RemoteSensingChangeDetectionModal from "../components/RemoteSensingChangeDetectionModal";
 import BlockedTransactionModal from "../components/BlockedTransactionModal";
 import CadastralSubdivisionModal from "../components/CadastralSubdivisionModal";
 import DocumentPanel from "../components/DocumentPanel";
-import LiveDemoDock from "../components/LiveDemoDock";
 import OwnershipTimeline from "../components/OwnershipTimeline";
+import ParcelInfoPanel from "../components/ParcelInfoPanel";
 import ParcelMap from "../components/ParcelMap";
 import PropertyCardModal from "../components/PropertyCardModal";
 import QrPanel from "../components/QrPanel";
@@ -75,20 +74,28 @@ const getStateBadge = (state) => {
 
 const ParcelDetailPage = () => {
   const { parcelId } = useParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const mapSearchResult = searchParams.get("mapSearch") === "1";
   const { activeRole, permissions } = useAuth();
   const { t } = useLanguage();
   const { refreshKey } = useLiveEvents();
 
   const [parcel, setParcel] = useState(null);
+  const changeDetection = parcel?.unifiedRecord?.modules?.changeDetection?.data;
+  const citizenPanelParcelId = useRef(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("overview"); // overview, governance, disputes, ai, strata, workflows, audit
 
   // Modals
   const [showPropertyCard, setShowPropertyCard] = useState(false);
+  const [showParcelInfoPanel, setShowParcelInfoPanel] = useState(false);
+  const [mapFitRequest, setMapFitRequest] = useState(0);
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showSubdivisionModal, setShowSubdivisionModal] = useState(false);
-  const [showSatelliteSlider, setShowSatelliteSlider] = useState(false);
+  const [showChangeDetails, setShowChangeDetails] = useState(false);
   const [showSchemaHarmonizer, setShowSchemaHarmonizer] = useState(false);
   const [showThreeDCadastre, setShowThreeDCadastre] = useState(false);
   const [blockedData, setBlockedData] = useState(null);
@@ -109,33 +116,21 @@ const ParcelDetailPage = () => {
     loadParcel();
   }, [parcelId, refreshKey]);
 
+  useEffect(() => {
+    const firstCitizenVisit = activeRole === "citizen" && parcel && citizenPanelParcelId.current !== parcelId;
+    if ((mapSearchResult || firstCitizenVisit) && parcel) {
+      setShowParcelInfoPanel(true);
+      if (activeRole === "citizen") citizenPanelParcelId.current = parcelId;
+    } else if (!mapSearchResult && activeRole !== "citizen") {
+      setShowParcelInfoPanel(false);
+    }
+  }, [location.key, mapSearchResult, activeRole, parcelId, Boolean(parcel)]);
+
   const copyUlpin = () => {
     if (parcel?.ulpin) {
       navigator.clipboard.writeText(parcel.ulpin);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleSroDeedAttempt = async () => {
-    setActionLoading(true);
-    setStatusMessage("");
-    try {
-      const res = await simulateFastTrackSroDeed(parcel.parcelId, {
-        buyerName: "Sanjay Narayanan",
-        consideration: "₹ 1,20,00,000",
-        stampDuty: "₹ 6,00,000"
-      });
-      setStatusMessage(`✅ Deed Registered & e-Mutation auto-sanctioned in 410ms!`);
-      loadParcel();
-    } catch (err) {
-      if (err.response?.status === 403 && err.response?.data?.blocked) {
-        setBlockedData(err.response.data);
-      } else {
-        setStatusMessage(err.response?.data?.message || "Registration denied");
-      }
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -175,6 +170,59 @@ const ParcelDetailPage = () => {
     );
   }
 
+  if (activeRole !== "admin") {
+    return (
+      <main className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {activeRole === "citizen" ? "Citizen land records" : `${activeRole.replaceAll("_", " ")} parcel workspace`}
+            </p>
+            <h2 className="mt-1 text-xl font-bold text-[#0B2545]">
+              {activeRole === "citizen" ? "Parcel location and record information" : "Parcel location and permitted record information"}
+            </h2>
+          </div>
+          {!showParcelInfoPanel && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowParcelInfoPanel(true);
+                setSearchFocusRequest((request) => request + 1);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B2545]"
+            >
+              View Parcel Information
+            </button>
+          )}
+        </div>
+        <div className={showParcelInfoPanel ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
+          <ParcelMap
+            parcel={parcel}
+            height="min(68vh, 680px)"
+            fitRequest={mapFitRequest}
+            searchFocusRequest={searchFocusRequest}
+            restrictedView={activeRole !== "admin"}
+            role={activeRole}
+          />
+          {showParcelInfoPanel && (
+            <ParcelInfoPanel
+              parcel={parcel}
+              citizen={activeRole === "citizen"}
+              role={activeRole}
+              onRefresh={loadParcel}
+              onClose={() => {
+                setShowParcelInfoPanel(false);
+                setSearchFocusRequest((request) => request + 1);
+              }}
+              onZoomToParcel={() => setMapFitRequest((request) => request + 1)}
+              onSearchAnother={() => setSearchFocusRequest((request) => request + 1)}
+            />
+          )}
+        </div>
+      </main>
+    );
+  }
+
   const isCourtLocked = Boolean(parcel.disputeRecord?.transactionLock || parcel.essentialLayers?.ror?.revenueCourtDispute);
   const dispute = parcel.disputeRecord || {};
   const hasSubdivision = Boolean(parcel.subdivisionData?.isSubdivided);
@@ -211,7 +259,7 @@ const ParcelDetailPage = () => {
 
             {/* Transaction Lock Alert Badge */}
             {isCourtLocked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm animate-pulse">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
                 <Lock size={12} />
                 🚨 Court Stay Active: Section 52 Lis Pendens
               </span>
@@ -260,7 +308,28 @@ const ParcelDetailPage = () => {
       )}
 
       {/* Main Interactive GIS Canvas */}
-      <ParcelMap parcel={parcel} height="460px" />
+      <div className={mapSearchResult && showParcelInfoPanel ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
+        <ParcelMap
+          parcel={parcel}
+          height="460px"
+          fitRequest={mapFitRequest}
+          searchFocusRequest={searchFocusRequest}
+        />
+        {mapSearchResult && showParcelInfoPanel && (
+          <ParcelInfoPanel
+            parcel={parcel}
+            role={activeRole}
+            citizen={activeRole === "citizen"}
+            onRefresh={loadParcel}
+            onClose={() => {
+              setShowParcelInfoPanel(false);
+              setSearchFocusRequest((request) => request + 1);
+            }}
+            onZoomToParcel={() => setMapFitRequest((request) => request + 1)}
+            onSearchAnother={() => setSearchFocusRequest((request) => request + 1)}
+          />
+        )}
+      </div>
 
       {/* Progressive Disclosure Tabs Bar */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-earth-100/80 p-1 text-xs font-bold border border-earth-200">
@@ -299,7 +368,7 @@ const ParcelDetailPage = () => {
         >
           <Gavel size={14} />
           Legal & RCCMS Disputes
-          {isCourtLocked && <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />}
+          {isCourtLocked && <span className="h-2 w-2 rounded-full bg-red-500" />}
         </button>
 
         <button
@@ -310,7 +379,7 @@ const ParcelDetailPage = () => {
           }`}
         >
           <Zap size={14} />
-          AI Satellite Radar
+          Remote Sensing Change Detection
         </button>
 
         {has3D && (
@@ -429,31 +498,6 @@ const ParcelDetailPage = () => {
             </div>
           </div>
 
-          {/* SRO Deed Registration Demo Action (Testing Anti-Fraud Lock) */}
-          <div className="rounded-3xl border border-earth-300 bg-white p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-bold text-rose-900 uppercase">
-                Sub-Registrar (SRO) Test Gate
-              </span>
-              <h4 className="font-extrabold text-earth-950 text-base mt-1">
-                Deed Registration & Automated Inter-Agency e-Mutation
-              </h4>
-              <p className="text-xs text-earth-600 mt-0.5">
-                Tests Section 52 Transfer of Property Act anti-fraud lock if the parcel is under active court stay.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSroDeedAttempt}
-              disabled={actionLoading}
-              className={`rounded-full px-5 py-2.5 text-xs font-bold text-white shadow transition ${
-                isCourtLocked ? "bg-red-700 hover:bg-red-800" : "bg-blue-700 hover:bg-blue-800"
-              }`}
-            >
-              {actionLoading ? "Executing SRO Deed..." : isCourtLocked ? "Attempt Deed (Test Block)" : "Register Deed & Auto-Mutate (<1s)"}
-            </button>
-          </div>
         </div>
       )}
 
@@ -545,8 +589,9 @@ const ParcelDetailPage = () => {
         </div>
       )}
 
-      {/* 4. AI SATELLITE RADAR TAB */}
+      {/* 4. REMOTE SENSING CHANGE DETECTION TAB */}
       {activeTab === "ai" && (
+        <div className="space-y-5">
         <div className="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
             <div className="flex items-center gap-3">
@@ -554,43 +599,107 @@ const ParcelDetailPage = () => {
                 🛰️
               </span>
               <div>
-                <h3 className="text-lg font-black text-earth-950">AI Geospatial Remote Sensing & Change Radar</h3>
-                <p className="text-xs text-earth-600">Bi-temporal satellite imagery comparison against sanctioned cadastre</p>
+                <h3 className="text-lg font-black text-earth-950">Remote Sensing Change Detection</h3>
+                <p className="text-xs text-earth-600">Parcel-associated prototype analysis from local demonstration records</p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setShowSatelliteSlider(true)}
+              onClick={() => setShowChangeDetails(true)}
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-rose-800"
             >
               <Eye size={14} />
-              Open Bi-Temporal Slider (2024 vs 2026)
+              View change details
             </button>
           </div>
 
+          <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-950">
+            Simulated sample analysis only. No real satellite imagery or remote-sensing provider is connected; this is not authoritative intelligence.
+          </p>
+
           <div className="grid gap-4 sm:grid-cols-3 text-xs">
             <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200">
-              <span className="font-bold text-rose-900 uppercase tracking-wider">Satellite Anomaly Flag</span>
+              <span className="font-bold text-rose-900 uppercase tracking-wider">Detected change</span>
               <p className="mt-1 text-sm font-black text-rose-950">
-                {parcel.aiGeospatial?.satelliteChangeDetection?.anomalyType || "Boundary Conformity Normal"}
+                {changeDetection?.status === "change-detected"
+                  ? changeDetection.detectedChange
+                  : changeDetection?.status === "no-change-recorded"
+                    ? "No change recorded in sample analysis"
+                    : "No sample analysis available"}
               </p>
             </div>
 
             <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200">
-              <span className="font-bold text-amber-900 uppercase tracking-wider">Confidence Level</span>
-              <p className="mt-1 text-2xl font-black text-amber-950">
-                {parcel.aiGeospatial?.satelliteChangeDetection?.confidenceScorePercent || 94}%
-              </p>
+              <span className="font-bold text-amber-900 uppercase tracking-wider">Confidence</span>
+              <p className="mt-1 text-2xl font-black text-amber-950">Not calculated</p>
             </div>
 
             <div className="rounded-2xl bg-blue-50 p-4 border border-blue-200">
-              <span className="font-bold text-blue-900 uppercase tracking-wider">Footprint Change</span>
-              <p className="mt-1 text-2xl font-black text-blue-950">
-                +{parcel.aiGeospatial?.satelliteChangeDetection?.detectedFootprintChangeSqM || 142} m²
-              </p>
+              <span className="font-bold text-blue-900 uppercase tracking-wider">Detection / recorded pass date · change area</span>
+              <p className="mt-1 text-sm font-black text-blue-950">{changeDetection?.detectionDate || "Not available"} · {changeDetection?.changeAreaSqM != null ? `${changeDetection.changeAreaSqM} m²` : "Area not available"}</p>
             </div>
           </div>
+          {changeDetection?.sourceImagery && (
+            <p className="text-xs text-earth-700">
+              <strong>Recorded imagery metadata:</strong> {Object.entries(changeDetection.sourceImagery)
+                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+                .join(" · ")}
+            </p>
+          )}
+        </div>
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-[#0B2545]">Decision-support signals</h3>
+              <p className="mt-1 text-xs text-slate-600">
+                Deterministic rules over available application records; not a predictive ML model.
+              </p>
+            </div>
+            {parcel.unifiedRecord?.modules?.decisionSupport?.data?.generatedAt && (
+              <p className="text-xs text-slate-600">Report time: {parcel.unifiedRecord.modules.decisionSupport.data.generatedAt}</p>
+            )}
+          </div>
+          {parcel.unifiedRecord?.modules?.decisionSupport?.data ? (
+            <>
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                Decision support only. Signals may be incomplete or false positives and are not legal, ownership, registration, or enforcement decisions. Confidence is not calculated or validated.
+              </p>
+              {parcel.unifiedRecord.modules.decisionSupport.data.findings.length ? (
+                <ul className="mt-4 space-y-3">
+                  {parcel.unifiedRecord.modules.decisionSupport.data.findings.map((finding) => (
+                    <li key={finding.code} className="rounded-xl border border-slate-200 p-4">
+                      <h4 className="text-sm font-semibold text-slate-900">{finding.detected}</h4>
+                      <p className="mt-1 text-xs leading-5 text-slate-700">{finding.explanation}</p>
+                      <p className="mt-2 text-xs font-medium text-slate-600">
+                        Confidence: not calculated · Recorded: {finding.timestamp}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-slate-600">
+                        {finding.sourceData.map((source, index) => (
+                          <p key={`${finding.code}-${source.record}-${index}`}>
+                            <span className="font-semibold">{source.record}:</span>{" "}
+                            {Object.entries(source.fields)
+                              .map(([field, value]) => `${field}=${Array.isArray(value) ? value.join(", ") : value ?? "not recorded"}`)
+                              .join(" · ")}
+                          </p>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-slate-700">No configured decision-support rules were triggered by the available records.</p>
+              )}
+              <p className="mt-4 text-xs text-slate-500">
+                Source: {parcel.unifiedRecord.modules.decisionSupport.data.algorithm.name} · {parcel.unifiedRecord.modules.decisionSupport.data.generatedAt}
+              </p>
+            </>
+          ) : (
+            <p className="mt-4 text-sm text-slate-700">
+              Decision-support details are not available for this role or parcel.
+            </p>
+          )}
+        </section>
         </div>
       )}
 
@@ -688,11 +797,10 @@ const ParcelDetailPage = () => {
         />
       )}
 
-      {showSatelliteSlider && (
-        <BiTemporalSatelliteModal
+      {showChangeDetails && (
+        <RemoteSensingChangeDetectionModal
           parcel={parcel}
-          onClose={() => setShowSatelliteSlider(false)}
-          onActionCompleted={loadParcel}
+          onClose={() => setShowChangeDetails(false)}
         />
       )}
 
@@ -712,14 +820,6 @@ const ParcelDetailPage = () => {
         />
       )}
 
-      {/* Floating Jury Demonstration Dock */}
-      <LiveDemoDock
-        currentParcelId={parcel.parcelId}
-        onOpenSubdivision={() => setShowSubdivisionModal(true)}
-        onOpenSatelliteSlider={() => setShowSatelliteSlider(true)}
-        onOpenSchemaHarmonizer={() => setShowSchemaHarmonizer(true)}
-        onOpenThreeDCadastre={() => setShowThreeDCadastre(true)}
-      />
     </div>
   );
 };

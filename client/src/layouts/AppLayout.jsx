@@ -2,10 +2,13 @@ import { useState } from "react";
 import {
   Bell,
   BookOpen,
+  ClipboardList,
   FileCheck,
   Globe,
   Landmark,
   Layers,
+  LogIn,
+  LogOut,
   MapPinned,
   QrCode,
   Radio,
@@ -18,7 +21,6 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useLiveEvents } from "../context/LiveEventContext";
-import LiveDemoDock from "../components/LiveDemoDock";
 
 const navClass = ({ isActive }) =>
   `rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition ${
@@ -26,21 +28,21 @@ const navClass = ({ isActive }) =>
   }`;
 
 const AppLayout = () => {
-  const { activeRole, switchRole, currentPersona, demoRolePersonas } = useAuth();
+  const { activeRole, switchRole, currentPersona, demoRolePersonas, isAuthenticated, user, logout } = useAuth();
   const { lang, setLanguage, t, availableLangs } = useLanguage();
   const { gatewayStatus, activeToasts, removeToast } = useLiveEvents();
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(167,128,57,0.14),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(47,143,165,0.12),_transparent_32%),linear-gradient(180deg,_#f8f6ef_0%,_#f2eddc_55%,_#edf6f1_100%)]">
+    <div className="min-h-screen bg-slate-50">
       {/* Subtle National Tricolor Accent Bar */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-600" />
+      <div className="h-1.5 w-full bg-[#0B2545]" />
 
       {/* Floating Real-Time Toast Notifications (Top Right) */}
       <div className="fixed top-4 right-4 z-[3000] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {activeToasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto flex items-start justify-between gap-3 rounded-2xl border border-white/60 bg-white/95 p-3.5 shadow-2xl backdrop-blur-lg animate-in slide-in-from-right duration-200"
+            className="pointer-events-auto flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-lg"
           >
             <div className="flex items-start gap-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400 text-earth-950 text-xs shrink-0 mt-0.5">
@@ -96,9 +98,9 @@ const AppLayout = () => {
                 }`}>
                   <span className={`h-2 w-2 rounded-full ${
                     gatewayStatus === "connected"
-                      ? "bg-emerald-500 animate-pulse"
+                      ? "bg-emerald-500"
                       : gatewayStatus === "reconnecting"
-                      ? "bg-amber-500 animate-ping"
+                      ? "bg-amber-500"
                       : "bg-rose-500"
                   }`} />
                   {gatewayStatus === "connected"
@@ -142,44 +144,93 @@ const AppLayout = () => {
               </div>
 
               {/* 6-Persona Role Selector */}
-              <div className="flex items-center gap-1 rounded-full border border-earth-200 bg-earth-50/80 p-1 text-xs">
-                <span className="px-2 font-bold text-earth-500 uppercase text-[10px]">Persona:</span>
-                <select
-                  value={activeRole}
-                  onChange={(e) => switchRole(e.target.value)}
-                  className="rounded-full bg-white px-3 py-1 font-bold text-earth-900 border border-earth-300 shadow-xs focus:outline-none cursor-pointer text-xs"
-                >
-                  <option value="citizen">👤 Citizen Landowner</option>
-                  <option value="revenue_officer">📜 Revenue Officer (Tehsildar)</option>
-                  <option value="surveyor">📐 Revenue Surveyor (CORS GNSS)</option>
-                  <option value="sro">🖋️ Sub-Registrar (SRO)</option>
-                  <option value="bank">🏦 Bank (Finacle / Mortgage)</option>
-                  <option value="court">⚖️ Revenue Court (RCCMS)</option>
-                  <option value="admin">🏛️ National Admin (DoLR)</option>
-                </select>
-              </div>
+              {activeRole === "citizen" ? (
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                  Citizen land-record view
+                </span>
+              ) : (
+                <div className="flex items-center gap-1 rounded-full border border-earth-200 bg-earth-50/80 p-1 text-xs">
+                  <span className="px-2 font-bold text-earth-500 uppercase text-[10px]">Persona:</span>
+                  <select
+                    value={activeRole}
+                    onChange={(e) => switchRole(e.target.value)}
+                    className="rounded-full bg-white px-3 py-1 font-bold text-earth-900 border border-earth-300 shadow-xs focus:outline-none cursor-pointer text-xs"
+                  >
+                    <option value="citizen">👤 Citizen Landowner</option>
+                    <option value="revenue_officer">📜 Revenue Officer (Tehsildar)</option>
+                    <option value="surveyor">📐 Revenue Surveyor (CORS GNSS)</option>
+                    <option value="sro">🖋️ Sub-Registrar (SRO)</option>
+                    <option value="bank">🏦 Bank (Finacle / Mortgage)</option>
+                    <option value="court">⚖️ Revenue Court (RCCMS)</option>
+                    <option value="admin">🏛️ National Admin (DoLR)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Navigation links */}
-            <nav className="flex flex-wrap gap-1.5">
+            <nav className="flex flex-wrap items-center gap-1.5">
               <NavLink to="/" end className={navClass}>
                 <span className="inline-flex items-center gap-1.5">
                   <MapPinned size={15} />
                   Cadastre Explorer
                 </span>
               </NavLink>
-              <NavLink to="/std" className={navClass}>
-                <span className="inline-flex items-center gap-1.5">
-                  <BookOpen size={15} />
-                  Tech Standards (STD)
-                </span>
-              </NavLink>
-              <NavLink to="/scan" className={navClass}>
-                <span className="inline-flex items-center gap-1.5">
-                  <QrCode size={15} />
-                  Verify Hash / QR
-                </span>
-              </NavLink>
+              {activeRole !== "citizen" && (
+                <>
+                  <NavLink to="/std" className={navClass}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <BookOpen size={15} />
+                      Tech Standards (STD)
+                    </span>
+                  </NavLink>
+                  <NavLink to="/operations" className={navClass}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Shield size={15} />
+                      Operations
+                    </span>
+                  </NavLink>
+                  {["admin", "surveyor"].includes(activeRole) && (
+                    <NavLink to="/field-survey" className={navClass}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <ClipboardList size={15} />
+                        Field Survey
+                      </span>
+                    </NavLink>
+                  )}
+                  <NavLink to="/scan" className={navClass}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <QrCode size={15} />
+                    Verify Hash / QR
+                  </span>
+                  </NavLink>
+                </>
+              )}
+
+              {/* Login or Authenticated User Menu */}
+              {isAuthenticated ? (
+                <div className="flex items-center gap-1.5 pl-1">
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200">
+                    <UserCheck size={13} className="text-emerald-700" />
+                    <span className="truncate max-w-[110px]">{user?.name?.split(",")[0] || "Official"}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 transition"
+                  >
+                    <LogOut size={13} />
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <NavLink to="/login" className={navClass}>
+                  <span className="inline-flex items-center gap-1.5 text-amber-900 font-bold">
+                    <LogIn size={15} />
+                    Official Login
+                  </span>
+                </NavLink>
+              )}
             </nav>
           </div>
         </header>
@@ -200,8 +251,6 @@ const AppLayout = () => {
         </footer>
       </div>
 
-      {/* Persistent Floating Live Demo Dock */}
-      <LiveDemoDock />
     </div>
   );
 };

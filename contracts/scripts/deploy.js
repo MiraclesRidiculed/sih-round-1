@@ -1,19 +1,22 @@
-const hre = require("hardhat");
+import { network } from "hardhat";
 
 async function main() {
-  const factory = await hre.ethers.getContractFactory("KarnatakaLandAudit");
-  const contract = await factory.deploy();
-  await contract.waitForDeployment();
+  const connection = await network.create();
+  try {
+    const contract = await connection.ethers.deployContract("KarnatakaLandAudit");
+    await contract.waitForDeployment();
 
-  const contractAddress = await contract.getAddress();
+    const contractAddress = await contract.getAddress();
 
-  console.log("KarnatakaLandAudit deployed");
-  console.log(`Address: ${contractAddress}`);
-  console.log(`Network: ${hre.network.name}`);
+    console.log("KarnatakaLandAudit deployed");
+    console.log(`Address: ${contractAddress}`);
+    console.log(`Network: ${connection.networkName}`);
+  } finally {
+    await connection.close();
+  }
 }
 
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-

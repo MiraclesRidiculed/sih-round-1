@@ -3,37 +3,59 @@ import {
   addParcelWorkflow,
   approveSubdivision,
   createBankLien,
+  createParcelTransactionApplication,
   getParcelDetail,
   getParcelQr,
   getParcelVerification,
   listParcels,
   recommendAiInspection,
   releaseBankLien,
-  simulateSroDeedFastTrack,
-  subdivideParcel
+  submitFieldSurvey,
+  subdivideParcel,
+  updateParcelTransactionStatus
 } from "../controllers/parcelController.js";
-import { requireRole } from "../middleware/authMiddleware.js";
+import { authenticateToken, requireRole } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.get("/", listParcels);
-router.get("/:parcelId", getParcelDetail);
-router.get("/:parcelId/verification", getParcelVerification);
-router.get("/:parcelId/qr", getParcelQr);
+router.get("/", authenticateToken, listParcels);
+router.get("/:parcelId", authenticateToken, getParcelDetail);
+router.get(
+  "/:parcelId/verification",
+  authenticateToken,
+  requireRole(["admin"]),
+  getParcelVerification
+);
+router.get(
+  "/:parcelId/qr",
+  authenticateToken,
+  requireRole(["admin"]),
+  getParcelQr
+);
 
-// Workflow & Anti-Fraud Actions
-router.post("/:parcelId/workflow", addParcelWorkflow);
-router.post("/:parcelId/sro-fast-track", requireRole(["sro", "admin"]), simulateSroDeedFastTrack);
-
-// Surveyor & Subdivision Actions
-router.post("/:parcelId/subdivide", requireRole(["surveyor", "admin"]), subdivideParcel);
-router.post("/:parcelId/subdivision/approve", requireRole(["revenue_officer", "admin"]), approveSubdivision);
-
-// Bank & Lien Actions
-router.post("/:parcelId/bank-lien", requireRole(["bank", "admin"]), createBankLien);
-router.post("/:parcelId/release-lien", requireRole(["bank", "admin"]), releaseBankLien);
-
-// AI & Inspection Actions
-router.post("/:parcelId/ai-inspection-recommend", requireRole(["revenue_officer", "admin"]), recommendAiInspection);
+router.post(
+  "/:parcelId/workflow",
+  authenticateToken,
+  requireRole(["admin", "revenue_officer", "surveyor", "sro", "court", "bank", "citizen"]),
+  addParcelWorkflow
+);
+router.post("/:parcelId/field-surveys", authenticateToken, requireRole(["surveyor", "admin"]), submitFieldSurvey);
+router.post(
+  "/:parcelId/transactions",
+  authenticateToken,
+  requireRole(["citizen", "sro", "admin"]),
+  createParcelTransactionApplication
+);
+router.patch(
+  "/:parcelId/transactions/:transactionId",
+  authenticateToken,
+  requireRole(["sro", "admin"]),
+  updateParcelTransactionStatus
+);
+router.post("/:parcelId/subdivide", authenticateToken, requireRole(["surveyor", "admin"]), subdivideParcel);
+router.post("/:parcelId/subdivision/approve", authenticateToken, requireRole(["revenue_officer", "admin"]), approveSubdivision);
+router.post("/:parcelId/bank-lien", authenticateToken, requireRole(["bank", "admin"]), createBankLien);
+router.post("/:parcelId/release-lien", authenticateToken, requireRole(["bank", "admin"]), releaseBankLien);
+router.post("/:parcelId/ai-inspection-recommend", authenticateToken, requireRole(["revenue_officer", "admin"]), recommendAiInspection);
 
 export default router;

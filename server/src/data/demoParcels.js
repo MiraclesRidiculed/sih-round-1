@@ -670,11 +670,11 @@ export const demoParcels = [
         lastSatellitePassDate: "2026-08-18",
         historicalReferenceDate: "2024-03-01",
         anomalyDetected: true,
-        anomalyType: "Potential Encroachment Alert on North-East Edge",
+        anomalyType: "Sample: potential boundary change on North-East Edge",
         confidenceScorePercent: 94,
         detectedFootprintChangeSqM: 38.5,
         aiRecommendation:
-          "AI Satellite Alert: North-East corner shows unauthorized boundary fencing extending 3.8m toward lake buffer zone. Immediate field inspection by Revenue Inspector recommended."
+          "Simulated sample only: illustrative 38.5 sq.m boundary change requires independent field verification. No satellite imagery provider is connected."
       }
     },
     departmentalWorkflows: [
@@ -734,7 +734,7 @@ export const demoParcels = [
     },
     verificationHint: {
       status: "attention",
-      summary: "RTC and Kaveri records are consistent, but AI Satellite Change Detection flagged 38.5 sqm perimeter anomaly near lake buffer."
+      summary: "Demo record includes a simulated 38.5 sq.m perimeter change sample; it is not a verified satellite finding."
     },
     blockchain: {
       parcelKey: "KAR|Bengaluru Urban|Bengaluru East|Bidarahalli|Avalahalli|123/4|A",
@@ -746,7 +746,7 @@ export const demoParcels = [
     },
     qrToken: "scan-kar-blru-0001",
     demoNotes:
-      "Karnataka Land Stack Pilot: Demonstrates Bhoomi RTC, Kaveri deed, Master Plan R-2 zoning, and AI satellite change detection flagging lake buffer encroachment."
+      "Karnataka Land Stack Pilot: Demonstrates local Bhoomi RTC, Kaveri deed, Master Plan R-2 zoning, and simulated remote-sensing change detection. No satellite provider is connected."
   },
 
   // 4. KARNATAKA PILOT PARCEL 2 (Mysuru - Heritage & Active Agricultural Mortgage)
@@ -1482,8 +1482,9 @@ export const demoUsers = [
     name: "Dr. Rameshwar Sharma, IAS",
     email: "admin@landstack.gov.in",
     role: "admin",
-    designation: "Joint Secretary / National DPI Administrator",
+    designation: "DoLR National Platform Administrator",
     department: "Department of Land Resources (DoLR), MoRD",
+    jurisdiction: "National / All States",
     passwordHash: "",
     lastLoginAt: "2026-08-20T09:45:00.000Z"
   },
@@ -1491,8 +1492,9 @@ export const demoUsers = [
     name: "K. Annadurai, DRO",
     email: "tehsildar@tamilnilam.tn.gov.in",
     role: "revenue_officer",
-    designation: "District Revenue Officer & Tehsildar",
-    department: "Revenue & Disaster Management, Tamil Nadu",
+    designation: "Tehsildar / Village Administrative Officer",
+    department: "Revenue & Disaster Management Department",
+    jurisdiction: "Sriperumbudur / Kanchipuram",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:10:00.000Z"
   },
@@ -1500,8 +1502,9 @@ export const demoUsers = [
     name: "P. Vignesh, LIS",
     email: "surveyor@surveyofindia.gov.in",
     role: "surveyor",
-    designation: "Head Licensed Land Surveyor (CORS GNSS)",
+    designation: "Directorate of Survey & Land Records",
     department: "Survey Settlement & Land Records (SSLR)",
+    jurisdiction: "Cadastral Survey Unit",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:12:00.000Z"
   },
@@ -1509,35 +1512,39 @@ export const demoUsers = [
     name: "Meenakshi Sundaram",
     email: "sro.sriperumbudur@tnreginet.gov.in",
     role: "sro",
-    designation: "Sub-Registrar (SRO Grade-I)",
+    designation: "Sub-Registrar / Registration & Stamps Department",
     department: "Registration & Stamps Department",
+    jurisdiction: "SRO Sriperumbudur",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:15:00.000Z"
-  },
-  {
-    name: "Vikram Malhotra",
-    email: "mortgages@iob.bank.in",
-    role: "bank",
-    designation: "Chief Credit Risk Officer (Mortgage Cell)",
-    department: "Indian Overseas Bank / Core Banking",
-    passwordHash: "",
-    lastLoginAt: "2026-08-20T10:18:00.000Z"
   },
   {
     name: "Hon. Justice B. Patil",
     email: "rccms.bench@judiciary.gov.in",
     role: "court",
-    designation: "Presiding Officer & Assistant Commissioner",
+    designation: "Revenue Court / RCCMS Judicial Officer",
     department: "Revenue Court Case Management System (RCCMS)",
+    jurisdiction: "Assistant Commissioner Revenue Bench",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:20:00.000Z"
+  },
+  {
+    name: "Vikram Malhotra",
+    email: "mortgages@iob.bank.in",
+    role: "bank",
+    designation: "Financial Institution / Core Banking",
+    department: "Indian Overseas Bank / Core Banking (Finacle)",
+    jurisdiction: "Mortgage & Hypothecation Cell",
+    passwordHash: "",
+    lastLoginAt: "2026-08-20T10:18:00.000Z"
   },
   {
     name: "Ananya Narayanan",
     email: "ananya.citizen@gmail.com",
     role: "citizen",
-    designation: "Citizen Landowner & Investor",
+    designation: "Public Landholder / Applicant",
     department: "Public User",
+    jurisdiction: "Citizen Services Portal",
     passwordHash: "",
     lastLoginAt: "2026-08-20T10:25:00.000Z"
   }

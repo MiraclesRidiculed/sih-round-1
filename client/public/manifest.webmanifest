@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Land Stack Field Survey",
+  "short_name": "Field Survey",
+  "description": "Offline field survey workspace for locally cached cadastral records.",
+  "start_url": "/field-survey",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0B2545",
+  "icons": [
+    {
+      "src": "/icons/field-survey.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
